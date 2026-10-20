@@ -49,6 +49,8 @@ if args.rerank:
     from agent.relevance import OpenAIRelevanceFilter
     searcher.reranker=OpenAIRelevanceFilter(ROOT/'.runbook_index')
     policy={**policy,'selection':'quote_checked_llm_rerank','candidate_count':3,
+        'model':searcher.embedder.model,'relevance_model':searcher.reranker.model,
+        'corpus_hash':digest(json.dumps({k:v['content_hash'] for k,v in searcher.catalog.items()},sort_keys=True)),
         'note':'거리 단독 조정 결과는 vector_v1에 보존했습니다. 현재 선택은 상위 3개 후보의 관련성·인용 문구를 검증합니다. 거리 임계값은 현재 선택에 사용하지 않습니다.'}
     (ROOT/'data/retrieval_policy.json').write_text(json.dumps(policy,ensure_ascii=False,indent=2))
 results=[]
