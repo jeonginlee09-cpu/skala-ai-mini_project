@@ -7,3 +7,6 @@ __pycache__/
 *.pyc
 *.log
 evidence/
+
+# Original assignment materials: local backup, not submission source.
+/기존과제자료_백업_20261020/
