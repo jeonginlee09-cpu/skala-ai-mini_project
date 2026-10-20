@@ -21,6 +21,10 @@ from langsmith import traceable
 
 from .deps import SupervisorDeps
 from .retry import with_retry
+from .target_scope import requested_targets, enforce_scope, monitoring_error, coverage, incomplete_reply
+
+RESEARCH_DELAY_SECONDS = 0.35
+MAX_COVERAGE_RETRIES = 1
 
 
 def _load_known_systems() -> set[str]:
@@ -51,6 +55,10 @@ class AgentState(TypedDict, total=False):
     query: str
     thread_id: str
     request_id: str
+    requested_targets: list[str]
+    verified_targets: list[str]
+    unverified_targets: list[str]
+    coverage_retry_rounds: int
     history: list[dict]
     route: str
     needs_analysis: bool
@@ -105,10 +113,11 @@ async def plan_node(state: AgentState, deps: SupervisorDeps) -> dict:
 
     resource와 마찬가지로 이름을 어느 서버가 들고 있는지 미리 가정하지 않고,
     find_prompt()로 연결된 서버들을 먼저 조회해 찾은 뒤에만 get_prompt를 보낸다."""
+    expected = requested_targets(state['query'], KNOWN_SYSTEMS)
     prompt_server = await deps.mcp.find_prompt("incident_analysis_prompt")
     procedure = await deps.mcp.get_prompt(
         "incident_analysis_prompt",
-        {"system_name": _extract_system_name(state["query"]), "symptom": state["query"]},
+        {"system_name": ', '.join(expected), "symptom": state["query"]},
         server=prompt_server,
     )
     result, usage = deps.fast_llm.plan(state["query"], procedure)
@@ -116,7 +125,8 @@ async def plan_node(state: AgentState, deps: SupervisorDeps) -> dict:
                if t["agent"] == "research" and t.get("target")]
     event = {"type": "PlanCreated", "task_count": len(result["tasks"]),
              "targets": targets}
-    return {"tasks": result["tasks"], "needs_analysis": result["needs_analysis"],
+    return {"tasks": result["tasks"], "requested_targets":expected,
+            "needs_analysis": result["needs_analysis"],
             "cost_usd": _cost(state, usage), "events": state["events"] + [event]}
 
 
@@ -124,15 +134,16 @@ async def plan_node(state: AgentState, deps: SupervisorDeps) -> dict:
 async def gate_node(state: AgentState, deps: SupervisorDeps) -> dict:
     """Wave 6 — 권위 게이트. needs_analysis=False인데 섞여 들어온 analysis task를
     프롬프트가 아니라 코드로 강제 제거한다."""
-    tasks = state["tasks"]
+    expected = state.get('requested_targets') or requested_targets(state['query'], KNOWN_SYSTEMS)
+    tasks, scope_report = enforce_scope(state['tasks'], expected)
     if not state.get("needs_analysis", False):
         kept = [t for t in tasks if t["agent"] != "analysis"]
         removed = len(tasks) - len(kept)
     else:
         kept, removed = tasks, 0
     event = {"type": "GateApplied", "removed_analysis_tasks": removed}
-    return {"tasks": kept, "gate_removed": removed,
-            "events": state["events"] + [event]}
+    return {"tasks": kept, "gate_removed": removed, "requested_targets":expected,
+            "events": state["events"] + [{"type":"PlanCoverageChecked", **scope_report},event]}
 
 
 @traceable(name="research_node")
@@ -159,12 +170,21 @@ async def research_node(state: AgentState, deps: SupervisorDeps) -> dict:
 
     async def run_one(idx: int) -> dict:
         task = tasks[idx]
-        await asyncio.sleep(0.35)   # 태스크당 고정 지연 — 병렬 효과를 실측하기 위함
+        await asyncio.sleep(RESEARCH_DELAY_SECONDS)
         if task["kind"] == "monitoring":
-            data, retries = await with_retry(
-                deps.mcp.call_tool, "get_monitoring_status",
-                {"system_name": task["target"]})
-            return {"idx": idx, "source": "monitoring", "data": data, "retries": retries}
+            try:
+                data, retries = await with_retry(
+                    deps.mcp.call_tool, "get_monitoring_status",
+                    {"system_name": task["target"]})
+                error = monitoring_error(data, task['target'])
+                if error is None:
+                    return {"idx":idx, "source":"monitoring", "data":data, "retries":retries}
+            except Exception as exc:
+                # A failed tool is an unavailable measurement, never a zero/healthy value.
+                error = type(exc).__name__
+                retries = 2 if isinstance(exc, asyncio.TimeoutError) else 0
+            return {"idx":idx, "source":"monitoring_error", "retries":retries,
+                    "data":{"system_name":task['target'], "error_type":error}}
         uri = runbook_uri_template.format(incident_type=task["target"])
         data = await deps.mcp.read_resource(uri, server=runbook_server)
         return {"idx": idx, "source": "runbook", "data": data, "retries": 0}
@@ -177,12 +197,14 @@ async def research_node(state: AgentState, deps: SupervisorDeps) -> dict:
     collected = list(state.get("collected", []))
     events = list(state["events"])
     for r in results:
-        new_tasks[r["idx"]]["status"] = "done"
+        failed = r['source'] == 'monitoring_error'
+        new_tasks[r["idx"]]["status"] = 'failed' if failed else 'done'
         collected.append({"source": r["source"], "data": r["data"]})
         retry_total += r["retries"]
-        events.append({"type": "TaskCompleted", "id": new_tasks[r["idx"]]["id"],
+        events.append({"type": 'TaskFailed' if failed else 'TaskCompleted', "id": new_tasks[r["idx"]]["id"],
                        "source": r["source"], "target": new_tasks[r["idx"]]["target"],
-                       "retries": r["retries"]})
+                       "retries": r["retries"],
+                       **({'error_type':r['data']['error_type']} if failed else {})})
     return {"tasks": new_tasks, "collected": collected, "retry_count": retry_total,
             "parallel_elapsed": elapsed, "events": events}
 
@@ -216,19 +238,37 @@ def _classify_incident_type(collected: list[dict]) -> str:
 
 @traceable(name="replan_check_node")
 async def replan_check_node(state: AgentState, deps: SupervisorDeps) -> dict:
-    """Wave 7 — 1차 수집 결과 평가. runbook이 없으면 gap task만 추가해 재조사."""
+    """Check successful monitoring coverage before the existing runbook check."""
+    expected = state.get('requested_targets') or requested_targets(state['query'],KNOWN_SYSTEMS)
+    verified, missing = coverage(state.get('collected',[]), expected)
+    info = {'verified_targets':verified, 'unverified_targets':missing}
+    events = state['events'] + [{'type':'CoverageChecked', **info}]
+    retry_rounds = state.get('coverage_retry_rounds',0)
+    if missing:
+        retry = retry_rounds < MAX_COVERAGE_RETRIES
+        event = {'type':'ReplanCheck', 'is_sufficient':False,
+                 'next_action':'research' if retry else 'analysis',
+                 'reason':'coverage_retry' if retry else 'monitoring_unavailable',
+                 'missing_targets':missing}
+        result = {**info, 'events':events+[event]}
+        if retry:
+            extra = [{'id':f'coverage-{retry_rounds}-{i}', 'agent':'research',
+                      'kind':'monitoring','target':name,'status':'pending'}
+                     for i,name in enumerate(missing)]
+            result.update(tasks=state['tasks']+extra, coverage_retry_rounds=retry_rounds+1)
+        return result
     has_runbook = any(c["source"] == "runbook" for c in state.get("collected", []))
     rounds = state.get("replan_rounds", 0)
     if has_runbook or rounds >= 1:
         verdict = {"type": "ReplanCheck", "round": rounds, "is_sufficient": True}
-        return {"events": state["events"] + [verdict]}
+        return {**info, "events": events + [verdict]}
     incident_type = _classify_incident_type(state.get("collected", []))
     gap_task = {"id": "task-gap-runbook", "agent": "research", "kind": "runbook",
                 "target": incident_type, "status": "pending"}
     verdict = {"type": "ReplanCheck", "round": rounds, "is_sufficient": False,
                "gap_task": gap_task["id"], "target": incident_type}
-    return {"tasks": state["tasks"] + [gap_task], "replan_rounds": rounds + 1,
-            "events": state["events"] + [verdict]}
+    return {**info, "tasks": state["tasks"] + [gap_task], "replan_rounds": rounds + 1,
+            "events": events + [verdict]}
 
 
 @traceable(name="analysis_node")
@@ -237,6 +277,9 @@ async def analysis_node(state: AgentState, deps: SupervisorDeps) -> dict:
     실제로 패턴 비교가 필요하다고 판단한 경우)를 위한 실행 경로. gate가 살려둔
     agent=='analysis' task가 있을 때만 수집된 monitoring 결과들을 비교 분석한다."""
     tasks = state["tasks"]
+    if state.get('unverified_targets'):
+        return {'tasks':[{**t,'status':'skipped'} if t.get('agent')=='analysis' else dict(t) for t in tasks],
+                'events':state['events']+[{'type':'AnalysisSkipped','reason':'모니터링 미확인 대상 존재'}]}
     pending = [t for t in tasks if t["agent"] == "analysis" and t["status"] == "pending"]
     if not pending:
         return {"events": state["events"] +
@@ -261,6 +304,14 @@ async def write_node(state: AgentState, deps: SupervisorDeps) -> dict:
     그대로 노출)."""
     attempt = state.get("validation_attempts", 0) + 1
     writer = get_stream_writer()
+    if state.get('unverified_targets'):
+        # Deterministic partial report: the LLM cannot invent an unmeasured service's state.
+        draft = incomplete_reply(state.get('collected',[]), state.get('verified_targets',[]),
+                                 state['unverified_targets'])
+        writer({'type':'AnswerToken','attempt':attempt,'delta':draft})
+        return {'draft':draft, 'last_prompt':None,
+                'events':state['events']+[{'type':'DraftWritten','attempt':attempt,
+                    'length':len(draft),'mode':'coverage_incomplete'}]}
     draft, usage = await deps.quality_llm.write(
         state["query"], state.get("collected", []),
         attempt, state.get("validation_feedback"),
@@ -301,7 +352,7 @@ def _after_route(state: AgentState) -> str:
 
 def _after_replan_check(state: AgentState) -> str:
     last = state["events"][-1]
-    return "analysis" if last.get("is_sufficient") else "research"
+    return last.get('next_action') or ("analysis" if last.get("is_sufficient") else "research")
 
 
 def _after_validate(state: AgentState) -> str:

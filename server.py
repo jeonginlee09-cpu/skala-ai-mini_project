@@ -116,6 +116,10 @@ async def version():
 def _metadata(result: dict, run_id: str | None) -> dict:
     return {
         "request_id": result.get("request_id"),
+        "requested_targets": result.get("requested_targets",[]),
+        "verified_targets": result.get("verified_targets",[]),
+        "unverified_targets": result.get("unverified_targets",[]),
+        "coverage_retry_rounds": result.get("coverage_retry_rounds",0),
         "route": result.get("route"),
         "task_count": len(result.get("tasks", [])),
         "gate_removed": result.get("gate_removed", 0),
