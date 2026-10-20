@@ -90,6 +90,11 @@ class FastLLM(FakeLLM):
 class QualityLLM(FakeLLM):
     """최종 답변 작성 전담 (고품질·고비용)."""
 
+    async def write_grounded(self,query,evidence,actions,attempt,feedback):
+        from .grounded_report import default_report
+        report=default_report(evidence,actions)
+        return report,self._usage(query,str(report))
+
     @traceable(run_type="llm", name="quality_llm.write")
     async def write(self, query: str, collected: list[dict], attempt: int,
               feedback: str | None, on_token=None) -> tuple[str, dict]:

@@ -76,6 +76,7 @@ class RunbookRetriever:
         started=time.perf_counter()
         with self.lock:
             before=dict(self.stats)
+            relevance_before=dict(getattr(self.reranker,'stats',{}))
             try:
                 if self.collection is None:self.prepare()
                 queries=[]
@@ -130,6 +131,7 @@ class RunbookRetriever:
                     'uncovered_targets':[t for t,_ in queries if t and t not in covered],
                     'seconds':time.perf_counter()-started,
                     'selection':'quote_checked_llm_rerank' if self.reranker is not None else 'distance_only',
+                    'relevance_usage':{k:v-relevance_before.get(k,0) for k,v in getattr(self.reranker,'stats',{}).items()},
                     'usage':{key:self.stats[key]-before[key] for key in self.stats}}
             except Exception as exc:
                 return {'status':'catalog_unavailable' if not self.catalog else 'search_error',

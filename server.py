@@ -12,6 +12,7 @@ import asyncio
 import json
 import logging
 import os
+from pathlib import Path
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
@@ -34,6 +35,26 @@ from agent.supervisor_v1 import run_v1
 
 CREATION_COUNT = 0   # Wave 1 — 프로세스 내 Agent 번들 생성 횟수 (항상 1이어야 정상)
 logger = logging.getLogger(__name__)
+
+
+async def _build_retriever(backend):
+    mode=os.environ.get('RUNBOOK_SEARCH_MODE','chroma' if backend=='openai' else 'off')
+    if mode=='off':return None
+    if mode!='chroma':raise ValueError('RUNBOOK_SEARCH_MODE must be chroma or off')
+    from agent.embeddings import OpenAIEmbedding
+    from agent.relevance import OpenAIRelevanceFilter
+    from agent.runbook_retriever import RunbookRetriever,digest,load_catalog
+    root=Path(__file__).resolve().parent;policy=json.loads((root/'data/retrieval_policy.json').read_text())
+    embedder=OpenAIEmbedding();catalog=load_catalog(root/'data/runbooks')
+    actual_hash=digest(json.dumps({k:v['content_hash'] for k,v in catalog.items()},sort_keys=True))
+    if policy['model']!=embedder.model or policy['corpus_hash']!=actual_hash:
+        raise ValueError('Runbook corpus/model changed: re-evaluate retrieval policy before serving')
+    path=Path(os.environ.get('RUNBOOK_INDEX_PATH',str(root/'.runbook_index')))
+    searcher=RunbookRetriever(root/'data/runbooks',path,embedder,
+        max_distance=policy['max_distance'],secondary_margin=policy['secondary_margin'],
+        reranker=OpenAIRelevanceFilter(path))
+    await asyncio.to_thread(searcher.prepare)
+    return searcher
 
 
 class ChatRequest(BaseModel):   # Wave 1 — Pydantic 요청 검증
@@ -69,16 +90,19 @@ def _build_llms():
 async def lifespan(app: FastAPI):
     global CREATION_COUNT
     CREATION_COUNT += 1
+    backend, fast_llm, quality_llm = _build_llms()
+    retriever=await _build_retriever(backend)
     mcp = MCPClient()
     await mcp.start()   # Wave 2 — MCP subprocess는 서버 수명 동안 딱 1개
-    backend, fast_llm, quality_llm = _build_llms()
     app.state.llm_backend = backend
     deps = SupervisorDeps(
         fast_llm=fast_llm,
         quality_llm=quality_llm,
         mcp=mcp,
-        session_store=SqliteSessionStore(),
+        session_store=SqliteSessionStore(Path(os.environ.get('SESSION_DB_PATH',
+            str(Path(__file__).resolve().parent/'session.db')))),
         version=os.environ.get("SUPERVISOR_VERSION", "v2"),
+        retriever=retriever,
     )
     app.state.deps = deps
     app.state.graph = build_graph(deps) if deps.version == "v2" else None
@@ -105,7 +129,9 @@ async def health():
             "supervisor_version": app.state.deps.version,
             "llm_backend": app.state.llm_backend,
             "fast_llm": app.state.deps.fast_llm.name,
-            "quality_llm": app.state.deps.quality_llm.name}
+            "quality_llm": app.state.deps.quality_llm.name,
+            'runbook_search_mode':'chroma_with_quote_checked_rerank' if app.state.deps.retriever else 'disabled_offline',
+            'runbook_documents':len(app.state.deps.retriever.catalog) if app.state.deps.retriever else 0}
 
 
 @app.get("/version")
@@ -120,6 +146,13 @@ def _metadata(result: dict, run_id: str | None) -> dict:
         "verified_targets": result.get("verified_targets",[]),
         "unverified_targets": result.get("unverified_targets",[]),
         "coverage_retry_rounds": result.get("coverage_retry_rounds",0),
+        'validation_result':result.get('validation_result'),
+        'search_count':result.get('search_count',0),
+        'runbook_search_status':result.get('runbook_search',{}).get('status'),
+        'runbook_embedding_usage':result.get('runbook_search',{}).get('usage',{}),
+        'runbook_relevance_usage':result.get('runbook_search',{}).get('relevance_usage',{}),
+        'runbook_ids':[r['runbook_id'] for r in result.get('runbook_hits',[])],
+        'evidence':list(result.get('grounded_evidence',{}).values()),
         "route": result.get("route"),
         "task_count": len(result.get("tasks", [])),
         "gate_removed": result.get("gate_removed", 0),
@@ -148,7 +181,8 @@ async def _handle_chat(message: str, thread_id: str, request_id: str | None = No
             result = await app.state.graph.ainvoke(state, config=config)
         else:
             result = await run_v1(deps, message, thread_id, history)
-        deps.session_store.append_turn(thread_id, message, result["final"])
+        if result.get('response_status')!='validation_failed':
+            deps.session_store.append_turn(thread_id,message,result['final'])
     result['request_id'] = rid
     result['events'] = [tag_event(e, thread_id, rid) for e in result.get('events',[])]
     rt = get_current_run_tree()
@@ -158,7 +192,8 @@ async def _handle_chat(message: str, thread_id: str, request_id: str | None = No
 @app.post("/chat")
 async def chat(req: ChatRequest):
     result, run_id = await _handle_chat(req.message, req.thread_id, req.request_id)
-    return {"reply": result["final"], "events": result.get("events", []),
+    return {'status':result.get('response_status') or 'success',
+            "reply": result.get('final') or result.get('failure_reply',''), "events": result.get("events", []),
             "metadata": _metadata(result, run_id)}
 
 
@@ -187,6 +222,7 @@ async def chat_stream(message: str, thread_id: str = "default",
                     final, last_prompt = result['final'], result.get('last_prompt')
                 else:
                     seen, final, last_prompt = 0, "", None
+                    response_status='success'
                     config = {"metadata":{"request_id":rid,"conversation_id":thread_id}}
                     async for mode, payload in app.state.graph.astream(
                             initial_state(message, thread_id, rid, history), config=config,
@@ -203,9 +239,11 @@ async def chat_stream(message: str, thread_id: str = "default",
                                 final = delta["final"]
                             if delta.get("last_prompt"):
                                 last_prompt = delta["last_prompt"]
-                deps.session_store.append_turn(thread_id, message, final)
-                logger.info("request_completed request_id=%s thread_id=%s", rid, thread_id)
-                yield encode({"type":"FinalAnswer", "reply":final, "prompt":last_prompt})
+                            if delta.get('response_status'):response_status=delta['response_status']
+                if deps.version!='v2' or response_status!='validation_failed':
+                    deps.session_store.append_turn(thread_id,message,final)
+                    logger.info("request_completed request_id=%s thread_id=%s", rid, thread_id)
+                    yield encode({"type":"FinalAnswer", "reply":final, "prompt":last_prompt})
             except Exception as exc:
                 logger.exception("request_failed request_id=%s", rid)
                 yield encode({"type":"RequestFailed", "error_type":type(exc).__name__,

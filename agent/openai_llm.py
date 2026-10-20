@@ -18,6 +18,7 @@ OpenAI 계정에 실제 비용이 청구된다(run_openai.sh 실행 전 반드�
 
 사전 조건: 유효한 `OPENAI_API_KEY` 환경변수(.env).
 """
+import asyncio
 import json
 import os
 import re
@@ -80,7 +81,7 @@ class OpenAILLM:
         self.usd_per_1k = usd_per_1k_tokens
         self.api_key = os.environ.get("OPENAI_API_KEY", "")
 
-    def _chat(self, system: str, user: str, json_mode: bool = False) -> tuple[str, dict]:
+    def _chat(self, system: str, user: str, json_mode: bool = False, schema: dict | None = None) -> tuple[str, dict]:
         if not self.api_key:
             raise RuntimeError(
                 "OPENAI_API_KEY가 설정되지 않았습니다 — .env 또는 환경변수로 지정하세요."
@@ -93,6 +94,9 @@ class OpenAILLM:
         }
         if json_mode:
             payload["response_format"] = {"type": "json_object"}
+        if schema is not None:
+            payload['response_format']={'type':'json_schema','json_schema':{
+                'name':'grounded_operations_report','strict':True,'schema':schema}}
         headers = {"Authorization": f"Bearer {self.api_key}",
                    "Content-Type": "application/json"}
         resp = httpx.post(OPENAI_URL, json=payload, headers=headers, timeout=120.0)
@@ -207,6 +211,17 @@ class OpenAIFastLLM(OpenAILLM):
 
 class OpenAIQualityLLM(OpenAILLM):
     """최종 답변 작성 전담 (고품질 모델, 기본 gpt-4o)."""
+
+    @traceable(run_type='llm',name='openai_quality.write_grounded',
+               process_inputs=lambda inputs:{k:v for k,v in inputs.items() if k!='self'})
+    async def write_grounded(self,query,evidence,actions,attempt,feedback):
+        from .grounded_report import GroundedReport,report_prompt
+        system,user=report_prompt(query,evidence,actions,feedback)
+        content,usage=await asyncio.to_thread(self._chat,system,user,schema=GroundedReport.model_json_schema())
+        usage['prompt']=f'[SYSTEM]\n{system}\n\n[USER]\n{user}'
+        try:report=json.loads(content)
+        except (json.JSONDecodeError,TypeError):report={'invalid_json':True}
+        return report,usage
 
     @traceable(run_type="llm", name="openai_quality.write")
     async def write(self, query: str, collected: list[dict], attempt: int,

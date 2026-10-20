@@ -126,9 +126,13 @@ const STEP_LABELS = {
       : `대응 매뉴얼(runbook) 조회 (장애유형: ${e.target})`) + (e.retries ? ' (재시도 성공)' : ''),
   ReplanCheck: e => e.reason === 'coverage_retry' ? `미확인 대상만 재조회: ${e.missing_targets.join(', ')}`
       : e.reason === 'monitoring_unavailable' ? '재조회 상한 도달 → 미확인 대상 판단 보류'
+      : e.reason === 'retrieve_runbooks' ? '관련 런북 검색 준비'
       : e.is_sufficient ? null : `정보 부족 → 장애유형 "${e.target}"로 추가 조사`,
+  RunbookSearch: e => `런북 검색 ${e.attempt}회: ${e.status}${e.runbook_ids.length ? ' · ' + e.runbook_ids.join(', ') : ''}`,
+  RunbookLoaded: e => `MCP 매뉴얼 원문 확인: ${e.runbook_id}`,
+  RunbookEvidenceReady: e => `매뉴얼 근거: ${e.status}${e.uncovered_targets.length ? ' · 자료 부족 ' + e.uncovered_targets.join(', ') : ''}`,
   DraftWritten: e => `답변 초안 작성 (시도 ${e.attempt})`,
-  Validation: e => e.verdict === '합격' ? '검수 통과' : '검수 반려 → 다시 작성',
+  Validation: e => e.verdict === '합격' ? '근거·조건 검수 통과' : `근거·조건 검수 반려 (시도 ${e.attempt})`,
   Finalize: () => '최종 답변 완성',
 };
 
@@ -193,7 +197,7 @@ createApp({
         try { e = JSON.parse(event.data); } catch { return; }
         if (!RequestUI.accepts(e, requestId, activeRequestId)) return;
 
-        if (e.type === 'AnswerToken' || e.type === 'FinalAnswer') {
+        if (e.type === 'AnswerToken' || e.type === 'FinalAnswer' || e.type === 'ValidationFailed') {
           replyState = RequestUI.reduceReply(replyState, e);
           if (!streamItem) {
             streamItem = reactive({ id: nextId++, kind: 'agent', text: '', requestId });
@@ -203,6 +207,7 @@ createApp({
           if (e.type === 'FinalAnswer' && e.prompt)
             log.value.push({ id: nextId++, kind: 'prompt', text: e.prompt, requestId });
           scrollToBottom();
+          if (e.type === 'ValidationFailed') finish();
           return;
         }
         if (e.type === 'RequestFailed') {

@@ -10,6 +10,7 @@ fc
 
 사전 조건: `ollama serve` 실행 중 + `ollama pull qwen3:0.6b qwen3:8b`.
 """
+import asyncio
 import json
 import re
 from pathlib import Path
@@ -237,6 +238,15 @@ class OllamaFastLLM(OllamaLLM):
 
 class OllamaQualityLLM(OllamaLLM):
     """최종 답변 작성 전담 (상대적으로 큰 모델)."""
+
+    async def write_grounded(self,query,evidence,actions,attempt,feedback):
+        from .grounded_report import GroundedReport,report_prompt
+        system,user=report_prompt(query,evidence,actions,feedback)
+        content,usage=await asyncio.to_thread(self._chat,system,user,schema=GroundedReport.model_json_schema())
+        usage['prompt']=f'[SYSTEM]\n{system}\n\n[USER]\n{user}'
+        try:report=json.loads(content)
+        except (json.JSONDecodeError,TypeError):report={'invalid_json':True}
+        return report,usage
 
     @traceable(run_type="llm", name="ollama_quality.write")
     async def write(self, query: str, collected: list[dict], attempt: int,

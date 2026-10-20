@@ -40,6 +40,10 @@ class ControlledFast:
 
 class ControlledQuality:
     def __init__(self):self.calls=0
+    async def write_grounded(self,query,evidence,actions,attempt,feedback):
+        from agent.grounded_report import default_report
+        self.calls+=1
+        return default_report(evidence,actions),{'usd':0,'mode':'controlled_test'}
     async def write(self,query,collected,attempt,feedback,on_token=None):
         self.calls+=1
         names=[c['data']['system_name'] for c in collected if c['source']=='monitoring']

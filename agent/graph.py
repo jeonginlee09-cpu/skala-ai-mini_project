@@ -22,9 +22,14 @@ from langsmith import traceable
 from .deps import SupervisorDeps
 from .retry import with_retry
 from .target_scope import requested_targets, enforce_scope, monitoring_error, coverage, incomplete_reply
+from .evidence import build_evidence
+from .grounded_report import render_report
+from .runbook_retriever import digest
+from .validator import prepare_actions,validate_report
 
 RESEARCH_DELAY_SECONDS = 0.35
 MAX_COVERAGE_RETRIES = 1
+MAX_REPORT_ATTEMPTS = 3  # Initial draft + at most two rewrites; never force-pass.
 
 
 def _load_known_systems() -> set[str]:
@@ -75,6 +80,16 @@ class AgentState(TypedDict, total=False):
     last_prompt: str
     cost_usd: float
     events: list[dict]
+    grounded_evidence: dict
+    action_catalog: list[dict]
+    structured_draft: dict
+    draft_mode: str
+    validation_result: dict
+    response_status: str
+    failure_reply: str
+    runbook_hits: list[dict]
+    runbook_search: dict
+    search_count: int
 
 
 def _cost(state: AgentState, usage: dict) -> float:
@@ -85,7 +100,8 @@ def _cost(state: AgentState, usage: dict) -> float:
 async def route_node(state: AgentState, deps: SupervisorDeps) -> dict:
     """Wave 5 — 모든 쿼리가 무거운 파이프라인을 탈 필요는 없다."""
     result, usage = deps.fast_llm.route(state["query"])
-    event = {"type": "RouteDecided", "route": result["route"]}
+    event = {"type": "RouteDecided", "route": result["route"],
+             'tokens':usage.get('tokens'),'model':usage.get('model')}
     return {"route": result["route"], "needs_analysis": result["needs_analysis"],
             "cost_usd": _cost(state, usage),
             "events": state.get("events", []) + [event]}
@@ -124,7 +140,7 @@ async def plan_node(state: AgentState, deps: SupervisorDeps) -> dict:
     targets = [t["target"] for t in result["tasks"]
                if t["agent"] == "research" and t.get("target")]
     event = {"type": "PlanCreated", "task_count": len(result["tasks"]),
-             "targets": targets}
+             "targets": targets,'tokens':usage.get('tokens'),'model':usage.get('model')}
     return {"tasks": result["tasks"], "requested_targets":expected,
             "needs_analysis": result["needs_analysis"],
             "cost_usd": _cost(state, usage), "events": state["events"] + [event]}
@@ -257,18 +273,56 @@ async def replan_check_node(state: AgentState, deps: SupervisorDeps) -> dict:
                      for i,name in enumerate(missing)]
             result.update(tasks=state['tasks']+extra, coverage_retry_rounds=retry_rounds+1)
         return result
-    has_runbook = any(c["source"] == "runbook" for c in state.get("collected", []))
-    rounds = state.get("replan_rounds", 0)
-    if has_runbook or rounds >= 1:
-        verdict = {"type": "ReplanCheck", "round": rounds, "is_sufficient": True}
-        return {**info, "events": events + [verdict]}
-    incident_type = _classify_incident_type(state.get("collected", []))
-    gap_task = {"id": "task-gap-runbook", "agent": "research", "kind": "runbook",
-                "target": incident_type, "status": "pending"}
-    verdict = {"type": "ReplanCheck", "round": rounds, "is_sufficient": False,
-               "gap_task": gap_task["id"], "target": incident_type}
-    return {**info, "tasks": state["tasks"] + [gap_task], "replan_rounds": rounds + 1,
-            "events": events + [verdict]}
+    return {**info,'events':events+[{'type':'ReplanCheck','is_sufficient':False,
+        'reason':'retrieve_runbooks','next_action':'retrieve_runbooks'}]}
+
+
+@traceable(name='retrieve_runbooks_node')
+async def retrieve_runbooks_node(state: AgentState,deps: SupervisorDeps) -> dict:
+    evidence=build_evidence(state.get('collected',[]),state['request_id'])
+    retriever=getattr(deps,'retriever',None);events=list(state['events']);search_count=0
+    result={'status':'disabled_offline','hits':[]};books=[];errors=[]
+    if retriever is not None:
+        monitoring=[r['data'] for r in state['collected'] if r['source']=='monitoring']
+        for attempt in range(2):
+            result=await asyncio.to_thread(retriever.search,state['query'],monitoring,retry=bool(attempt))
+            search_count+=1
+            events.append({'type':'RunbookSearch','attempt':search_count,'status':result['status'],
+                'runbook_ids':[r['runbook_id'] for r in result['hits']],
+                'seconds':result.get('seconds'),'usage':result.get('usage',{}),
+                'relevance_usage':result.get('relevance_usage',{})})
+            if result['status'] not in {'not_found','search_error'}:break
+        if result['hits']:
+            try:
+                resource_server,template=await deps.mcp.find_resource_template('get_incident_runbook')
+                for hit in result['hits'][:2]:
+                    key=hit['runbook_id']
+                    try:
+                        if key not in retriever.catalog:raise ValueError('unregistered_runbook_id')
+                        text=await deps.mcp.read_resource(template.format(incident_type=key),server=resource_server)
+                        if text.startswith('# Runbook Not Found'):raise FileNotFoundError('runbook_not_found')
+                        if digest(text)!=retriever.catalog[key]['content_hash'] or digest(text)!=hit['content_hash']:
+                            raise ValueError('runbook_source_hash_mismatch')
+                        targets=[t for t in hit.get('targets',[]) if t in state['verified_targets']]
+                        if not targets and len(state['verified_targets'])==1:targets=list(state['verified_targets'])
+                        books.append({**hit,'text':text,'targets':targets})
+                        events.append({'type':'RunbookLoaded','runbook_id':key,'content_hash':hit['content_hash']})
+                    except Exception as exc:errors.append({'runbook_id':key,'error_type':type(exc).__name__})
+            except Exception as exc:errors.append({'error_type':type(exc).__name__})
+    status=result['status']
+    if result['hits'] and not books:status='read_error'
+    elif errors:status='partial'
+    actions=prepare_actions(books,evidence)
+    if books and not actions:status='rules_unverified'
+    covered={a['target'] for a in actions}
+    search={**result,'status':status,'errors':errors,
+        'uncovered_targets':[t for t in state.get('verified_targets',[]) if t not in covered]}
+    collected=state.get('collected',[])+[{'source':'runbook','data':b['text'],
+        'runbook_id':b['runbook_id'],'content_hash':b['content_hash']} for b in books]
+    events.append({'type':'RunbookEvidenceReady','status':status,'runbook_ids':[b['runbook_id'] for b in books],
+                   'uncovered_targets':search['uncovered_targets']})
+    return {'grounded_evidence':evidence,'action_catalog':actions,'runbook_hits':books,
+        'runbook_search':search,'search_count':search_count,'collected':collected,'events':events}
 
 
 @traceable(name="analysis_node")
@@ -290,60 +344,62 @@ async def analysis_node(state: AgentState, deps: SupervisorDeps) -> dict:
         if t["agent"] == "analysis" and t["status"] == "pending":
             t["status"] = "done"
     collected = state.get("collected", []) + [{"source": "analysis", "data": summary}]
-    event = {"type": "AnalysisCompleted", "length": len(summary)}
+    event = {"type": "AnalysisCompleted", "length": len(summary),
+             'tokens':usage.get('tokens'),'model':usage.get('model')}
     return {"tasks": new_tasks, "collected": collected,
             "cost_usd": _cost(state, usage), "events": state["events"] + [event]}
 
 
 @traceable(name="write_node")
 async def write_node(state: AgentState, deps: SupervisorDeps) -> dict:
-    """Wave 8/10a — 고품질 모델로 초안 작성 (1차는 의도적 저품질).
-
-    토큰마다 attempt 번호를 같이 실어 보낸다 — validate가 반려해 재작성(attempt 증가)
-    될 때 프론트가 새 말풍선으로 끊어서 보여줄 수 있게 하기 위함(Wave 8 재작성 루프를
-    그대로 노출)."""
+    """Keep incident drafts internal until source and condition checks pass."""
     attempt = state.get("validation_attempts", 0) + 1
-    writer = get_stream_writer()
     if state.get('unverified_targets'):
-        # Deterministic partial report: the LLM cannot invent an unmeasured service's state.
         draft = incomplete_reply(state.get('collected',[]), state.get('verified_targets',[]),
                                  state['unverified_targets'])
-        writer({'type':'AnswerToken','attempt':attempt,'delta':draft})
-        return {'draft':draft, 'last_prompt':None,
+        return {'draft':draft,'draft_mode':'monitoring_incomplete','last_prompt':None,
                 'events':state['events']+[{'type':'DraftWritten','attempt':attempt,
                     'length':len(draft),'mode':'coverage_incomplete'}]}
-    draft, usage = await deps.quality_llm.write(
-        state["query"], state.get("collected", []),
-        attempt, state.get("validation_feedback"),
-        on_token=lambda piece: writer(
-            {"type": "AnswerToken", "attempt": attempt, "delta": piece}))
-    return {"draft": draft, "last_prompt": usage.get("prompt"),
+    report,usage=await deps.quality_llm.write_grounded(state['query'],state['grounded_evidence'],
+        state['action_catalog'],attempt,state.get('validation_feedback'))
+    return {'structured_draft':report,'draft_mode':'grounded','draft':'',"last_prompt":usage.get('prompt'),
             "cost_usd": _cost(state, usage),
             "events": state["events"] + [{"type": "DraftWritten", "attempt": attempt,
-                                          "length": len(draft)}]}
+                                          'mode':'grounded','tokens':usage.get('tokens'),'model':usage.get('model')}]}
 
 
 @traceable(name="validate_node")
 async def validate_node(state: AgentState, deps: SupervisorDeps) -> dict:
-    """Wave 8 — 코드 기준 검증: 30자 이상 + 절차 번호 포함이어야 합격."""
-    draft = state["draft"]
+    """Validate typed evidence, target and condition contracts; no forced success."""
     attempts = state.get("validation_attempts", 0) + 1
-    ok = len(draft) >= 30 and "1)" in draft
-    verdict = "합격" if ok else "불합격"
-    if not ok and attempts >= 3:   # 실모델 무한 재작성 방지 — 최대 3회 후 통과 처리
-        ok, verdict = True, "합격(최대 시도 도달 — 통과 처리)"
-    feedback = None if ok else (
-        f"응답이 너무 짧습니다({len(draft)}자, 최소 30자). 절차를 1) 2) 3) 번호로 "
-        f"구체적으로 설명하세요.")
-    event = {"type": "Validation", "attempt": attempts, "verdict": verdict}
-    return {"validation_attempts": attempts, "validation_feedback": feedback,
-            "events": state["events"] + [event]}
+    if state.get('draft_mode')=='monitoring_incomplete':
+        expected=incomplete_reply(state['collected'],state['verified_targets'],state['unverified_targets'])
+        checked={'passed':state['draft']==expected,'errors':[]};draft=expected
+    else:
+        checked=validate_report(state['structured_draft'],state['grounded_evidence'],
+            state['action_catalog'],state['verified_targets'])
+        draft=render_report(state['structured_draft'],state['grounded_evidence'],state['action_catalog'],
+            search_status=state['runbook_search']['status'],
+            uncovered_targets=state['runbook_search'].get('uncovered_targets')) if checked['passed'] else ''
+    feedback=None if checked['passed'] else json.dumps(checked['errors'],ensure_ascii=False)
+    event={'type':'Validation','attempt':attempts,'verdict':'합격' if checked['passed'] else '불합격',
+           'errors':checked['errors']}
+    return {'validation_attempts':attempts,'validation_feedback':feedback,'validation_result':checked,
+            'draft':draft,'events':state['events']+[event]}
 
 
 @traceable(name="finalize_node")
 async def finalize_node(state: AgentState, deps: SupervisorDeps) -> dict:
-    return {"final": state["draft"],
+    return {"final": state["draft"],'response_status':'partial' if state.get('unverified_targets') else 'success',
             "events": state["events"] + [{"type": "Finalize", "pipeline": "incident-v2"}]}
+
+
+async def validation_failed_node(state: AgentState,deps: SupervisorDeps) -> dict:
+    facts=[f"{r['data']['system_name']}: 상태={r['data']['status']}, CPU {r['data']['cpu_percent']}%, 메모리 {r['data']['memory_percent']}%"
+           for r in state['collected'] if r['source']=='monitoring']
+    reply='답변의 근거·조건 검증에 실패해 대응 권고를 확정하지 않았습니다.\n확인된 실습 조회값: '+'; '.join(facts)
+    return {'response_status':'validation_failed','failure_reply':reply,'final':'',
+        'events':state['events']+[{'type':'ValidationFailed','reply':reply,'attempts':state['validation_attempts']}]}
 
 
 def _after_route(state: AgentState) -> str:
@@ -356,7 +412,8 @@ def _after_replan_check(state: AgentState) -> str:
 
 
 def _after_validate(state: AgentState) -> str:
-    return "finalize" if state.get("validation_feedback") is None else "write"
+    if state['validation_result']['passed']:return 'finalize'
+    return 'write' if state['validation_attempts']<MAX_REPORT_ATTEMPTS else 'validation_failed'
 
 
 def build_graph(deps: SupervisorDeps):
@@ -368,10 +425,12 @@ def build_graph(deps: SupervisorDeps):
     g.add_node("gate", node(gate_node))
     g.add_node("research", node(research_node))
     g.add_node("replan_check", node(replan_check_node))
+    g.add_node('retrieve_runbooks',node(retrieve_runbooks_node))
     g.add_node("analysis", node(analysis_node))
     g.add_node("write", node(write_node))
     g.add_node("validate", node(validate_node))
     g.add_node("finalize", node(finalize_node))
+    g.add_node('validation_failed',node(validation_failed_node))
 
     g.set_entry_point("route")
     g.add_conditional_edges("route", _after_route,
@@ -381,10 +440,12 @@ def build_graph(deps: SupervisorDeps):
     g.add_edge("gate", "research")
     g.add_edge("research", "replan_check")
     g.add_conditional_edges("replan_check", _after_replan_check,
-                            {"analysis": "analysis", "research": "research"})
+                            {"analysis": "analysis", "research": "research",'retrieve_runbooks':'retrieve_runbooks'})
+    g.add_edge('retrieve_runbooks','analysis')
     g.add_edge("analysis", "write")
     g.add_edge("write", "validate")
     g.add_conditional_edges("validate", _after_validate,
-                            {"finalize": "finalize", "write": "write"})
+                            {"finalize": "finalize", "write": "write",'validation_failed':'validation_failed'})
+    g.add_edge('validation_failed',END)
     g.add_edge("finalize", END)
     return g.compile()

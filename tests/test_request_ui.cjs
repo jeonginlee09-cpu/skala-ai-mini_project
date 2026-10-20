@@ -19,3 +19,8 @@ test('rewrite clears earlier attempt text instead of appending it', () => {
   state=ui.reduceReply(state,{type:'AnswerToken',delta:'새 초안',attempt:2});
   assert.equal(state.text,'새 초안');
 });
+test('failed validation is terminal and cannot be overwritten by success', () => {
+  const failed=ui.reduceReply(ui.newReply(),{type:'ValidationFailed',reply:'검증 실패 안내'});
+  assert.equal(failed.text,'검증 실패 안내');assert.equal(failed.completed,true);
+  assert.equal(ui.reduceReply(failed,{type:'FinalAnswer',reply:'우회 답변'}).text,'검증 실패 안내');
+});

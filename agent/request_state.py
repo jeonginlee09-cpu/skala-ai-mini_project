@@ -15,7 +15,9 @@ def initial_state(message: str, thread_id: str, request_id: str, history: list[d
             'draft':'', 'final':'', 'last_prompt':None, 'validation_feedback':None,
             'validation_attempts':0, 'replan_rounds':0, 'retry_count':0, 'cost_usd':0.0,
             'requested_targets':[], 'verified_targets':[], 'unverified_targets':[],
-            'coverage_retry_rounds':0}
+            'coverage_retry_rounds':0,'grounded_evidence':{},'action_catalog':[],
+            'structured_draft':{},'validation_result':{},'runbook_hits':[],
+            'runbook_search':{},'search_count':0,'failure_reply':''}
 
 
 def tag_event(event: dict, thread_id: str, request_id: str) -> dict:
