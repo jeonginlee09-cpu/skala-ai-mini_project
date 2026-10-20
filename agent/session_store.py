@@ -35,3 +35,12 @@ class SqliteSessionStore:
 
     def close(self) -> None:
         self.conn.close()
+
+    def append_turn(self, thread_id: str, message: str, reply: str) -> None:
+        """Store the completed pair atomically; a partial turn cannot leak into history."""
+        created = datetime.now().isoformat()
+        with self.conn:
+            self.conn.executemany(
+                'INSERT INTO messages VALUES (?,?,?,?)',
+                [(thread_id,'user',message,created),(thread_id,'assistant',reply,created)],
+            )

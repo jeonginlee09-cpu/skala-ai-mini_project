@@ -111,6 +111,7 @@
 </div>
 
 <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<script src="/request_ui.js"></script>
 <script>
 const { createApp, ref, reactive, nextTick } = Vue;
 
@@ -133,7 +134,13 @@ createApp({
     const input = ref('');
     const sending = ref(false);
     const logEl = ref(null);
-    const thread = 't-web-' + Math.random().toString(36).slice(2, 8);
+    // Reloading this tab keeps its conversation; a new tab has a separate session.
+    let thread;
+    try {
+      thread = sessionStorage.getItem('capstone-conversation-id') || 't-web-' + crypto.randomUUID();
+      sessionStorage.setItem('capstone-conversation-id', thread);
+    } catch { thread = 't-web-' + crypto.randomUUID(); }
+    let activeRequestId = null;
     let nextId = 0;
 
     fetch('/health').then(r => r.json()).then(h => {
@@ -146,6 +153,7 @@ createApp({
     }
 
     function onSubmit() {
+      if (sending.value) return; // Enter/rapid clicks must not create overlapping UI requests.
       const text = input.value.trim();
       if (!text) return;
 
@@ -158,36 +166,43 @@ createApp({
       log.value.push(stepsItem);
       scrollToBottom();
 
-      const url = `/chat/stream?message=${encodeURIComponent(text)}&thread_id=${encodeURIComponent(thread)}`;
+      const requestId = crypto.randomUUID();
+      activeRequestId = requestId;
+      const url = `/chat/stream?message=${encodeURIComponent(text)}&thread_id=${encodeURIComponent(thread)}&request_id=${encodeURIComponent(requestId)}`;
       const es = new EventSource(url);
       let streamItem = null;
-      let streamAttempt = null;   // write_node 재작성(attempt 증가) 시 새 말풍선으로 끊는다
+      let replyState = RequestUI.newReply();
+
+      function finish() {
+        es.close();
+        if (activeRequestId === requestId) {
+          activeRequestId = null;
+          sending.value = false;
+        }
+      }
 
       es.onmessage = (event) => {
-        if (event.data === '[DONE]') { es.close(); sending.value = false; return; }
+        if (activeRequestId !== requestId) { es.close(); return; }
+        if (event.data === '[DONE]') { finish(); return; }
         let e;
         try { e = JSON.parse(event.data); } catch { return; }
+        if (!RequestUI.accepts(e, requestId, activeRequestId)) return;
 
-        if (e.type === 'AnswerToken') {
-          if (!streamItem || streamAttempt !== e.attempt) {
-            streamItem = reactive({ id: nextId++, kind: 'agent', text: '' });
+        if (e.type === 'AnswerToken' || e.type === 'FinalAnswer') {
+          replyState = RequestUI.reduceReply(replyState, e);
+          if (!streamItem) {
+            streamItem = reactive({ id: nextId++, kind: 'agent', text: '', requestId });
             log.value.push(streamItem);
-            streamAttempt = e.attempt;
           }
-          streamItem.text += e.delta;
+          streamItem.text = replyState.text;
+          if (e.type === 'FinalAnswer' && e.prompt)
+            log.value.push({ id: nextId++, kind: 'prompt', text: e.prompt, requestId });
           scrollToBottom();
           return;
         }
-
-        if (e.type === 'FinalAnswer') {
-          if (!streamItem) {
-            streamItem = reactive({ id: nextId++, kind: 'agent', text: '' });
-            log.value.push(streamItem);
-          }
-          streamItem.text = e.reply;   // 토큰 합산 결과와 서버의 최종 텍스트를 일치시킨다
-          if (e.prompt) log.value.push({ id: nextId++, kind: 'prompt', text: e.prompt });
-          streamItem = null;
-          streamAttempt = null;
+        if (e.type === 'RequestFailed') {
+          log.value.push({id:nextId++, kind:'agent', text:e.message, requestId});
+          finish();
           scrollToBottom();
           return;
         }
@@ -200,7 +215,13 @@ createApp({
         scrollToBottom();
       };
 
-      es.onerror = () => { es.close(); sending.value = false; };
+      es.onerror = () => {
+        if (activeRequestId === requestId) {
+          log.value.push({id:nextId++, kind:'agent', text:'연결이 종료되었습니다. 자동 재요청하지 않습니다.', requestId});
+          scrollToBottom();
+        }
+        finish();
+      };
     }
 
     return { backendLabel, log, input, sending, logEl, onSubmit };

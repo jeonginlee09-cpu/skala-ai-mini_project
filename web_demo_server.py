@@ -12,6 +12,7 @@ server.py는 평소처럼(fake/ollama/openai 아무 백엔드로나) 8100에 미
 실행:
     python3 web_demo_server.py        # http://localhost:8600 에서 채팅 화면 오픈
 """
+import os
 from pathlib import Path
 
 import httpx
@@ -19,7 +20,7 @@ import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 
-BACKEND = "http://127.0.0.1:8100"
+BACKEND = os.environ.get("BACKEND_URL", "http://127.0.0.1:8100")
 HERE = Path(__file__).parent
 
 app = FastAPI()
@@ -28,6 +29,11 @@ app = FastAPI()
 @app.get("/")
 async def index():
     return FileResponse(HERE / "web_chat.html")
+
+
+@app.get("/request_ui.js")
+async def request_ui():
+    return FileResponse(HERE / "request_ui.js", media_type="text/javascript")
 
 
 @app.get("/health")
@@ -47,12 +53,15 @@ async def proxy_chat(req: Request):
 
 
 @app.get("/chat/stream")
-async def proxy_stream(message: str, thread_id: str = "web-demo"):
+async def proxy_stream(message: str, thread_id: str = "web-demo", request_id: str | None = None):
+    params = {"message":message, "thread_id":thread_id}
+    if request_id is not None:
+        params["request_id"] = request_id
     async def relay():
         async with httpx.AsyncClient(timeout=None) as client:
             async with client.stream(
                 "GET", f"{BACKEND}/chat/stream",
-                params={"message": message, "thread_id": thread_id},
+                params=params,
             ) as upstream:
                 async for chunk in upstream.aiter_bytes():
                     yield chunk

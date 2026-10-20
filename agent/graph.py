@@ -50,6 +50,7 @@ def _extract_system_name(query: str) -> str:
 class AgentState(TypedDict, total=False):
     query: str
     thread_id: str
+    request_id: str
     history: list[dict]
     route: str
     needs_analysis: bool
