@@ -3,12 +3,12 @@ import unittest
 from unittest.mock import Mock,patch
 
 from agent.openai_llm import OpenAIQualityLLM
-from tests.test_grounding import GroundingTests
+from tests import test_grounding as fixtures
 
 
 class AdapterTests(unittest.IsolatedAsyncioTestCase):
     async def test_openai_uses_strict_schema_and_never_streams_unvalidated_draft(self):
-        evidence,actions,report=GroundingTests().context()
+        evidence,actions,report=fixtures.GroundingTests().context()
         import json
         response=Mock();response.json.return_value={'choices':[{'message':{'content':json.dumps(report)}}],
                                                    'usage':{'total_tokens':42}}
