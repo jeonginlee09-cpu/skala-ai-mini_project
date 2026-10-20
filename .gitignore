@@ -1,5 +1,7 @@
 .env
 .venv
+.venv-rag/
+.runbook_index/
 session.db*
 __pycache__/
 *.pyc
