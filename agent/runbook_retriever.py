@@ -23,9 +23,10 @@ def load_catalog(directory):
 
 
 class RunbookRetriever:
-    def __init__(self,directory,index_path,embedder,max_distance=.65,secondary_margin=.035):
+    def __init__(self,directory,index_path,embedder,max_distance=.65,secondary_margin=.035,reranker=None):
         self.directory=Path(directory);self.index_path=Path(index_path);self.embedder=embedder
         self.max_distance=max_distance;self.secondary_margin=secondary_margin
+        self.reranker=reranker
         self.catalog={};self.collection=None;self.lock=threading.RLock()
         self.stats={'document_tokens':0,'query_tokens':0,'embedding_requests':0,'cache_hits':0}
 
@@ -95,11 +96,28 @@ class RunbookRetriever:
                         if key not in self.catalog or meta['content_hash']!=self.catalog[key]['content_hash']:
                             continue
                         row={**meta,'distance':float(distance),'targets':[target] if target else []}
-                        rows.append(row);candidates.append({**row,'query':text})
+                        rows.append(row);candidates.append({**row,'query_id':i,'query':text})
                     accepted=[r for r in rows if r['distance']<=self.max_distance]
                     if accepted:
                         (primary if target or len(queries)==1 else secondary).append(accepted[0])
                         secondary.extend(r for r in accepted[1:] if r['distance']-accepted[0]['distance']<=self.secondary_margin)
+                if self.reranker is not None:
+                    offered=[{**r,'text':self.catalog[r['runbook_id']]['text']}
+                        for i in range(len(queries)) for r in [c for c in candidates if c['query_id']==i][:3]]
+                    selected=self.reranker(queries,offered);primary=[];secondary=[];counts={}
+                    normalize=lambda value:' '.join(value.split())
+                    for match in selected:
+                        i=match['query_id'];key=match['runbook_id']
+                        candidate=next((c for c in offered if c['query_id']==i and c['runbook_id']==key),None)
+                        if candidate is None:raise ValueError('relevance_candidate_mismatch')
+                        qquote=normalize(match['query_quote']);dquote=normalize(match['document_quote'])
+                        if len(qquote)<2 or len(dquote)<4 or qquote not in normalize(queries[i][1]) or dquote not in normalize(candidate['text']):
+                            raise ValueError('relevance_quote_mismatch')
+                        counts[i]=counts.get(i,0)+1
+                        if counts[i]>2:raise ValueError('relevance_result_cap')
+                        row={k:v for k,v in candidate.items() if k not in ['text','query','query_id']}
+                        row['query_quote']=match['query_quote'];row['document_quote']=match['document_quote']
+                        (primary if queries[i][0] or len(queries)==1 else secondary).append(row)
                 hits={}
                 for row in sorted(primary,key=lambda r:r['distance'])+sorted(secondary,key=lambda r:r['distance']):
                     key=row['runbook_id']
@@ -111,6 +129,7 @@ class RunbookRetriever:
                 return {'status':'ok' if selected else 'not_found','hits':selected,'candidates':candidates,
                     'uncovered_targets':[t for t,_ in queries if t and t not in covered],
                     'seconds':time.perf_counter()-started,
+                    'selection':'quote_checked_llm_rerank' if self.reranker is not None else 'distance_only',
                     'usage':{key:self.stats[key]-before[key] for key in self.stats}}
             except Exception as exc:
                 return {'status':'catalog_unavailable' if not self.catalog else 'search_error',

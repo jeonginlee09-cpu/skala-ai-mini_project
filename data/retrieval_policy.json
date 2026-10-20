@@ -1,0 +1,26 @@
+{
+  "model": "text-embedding-3-small",
+  "max_distance": 0.6868607997894287,
+  "secondary_margin": 0,
+  "corpus_hash": "f6b8dd0bd7a85446196b473ae1b509b1df536faa814db92323c5f8d1a43e901e",
+  "calibration_ids": [
+    "C01",
+    "C02",
+    "C03",
+    "C04",
+    "C05",
+    "C06",
+    "C07",
+    "C08",
+    "C09",
+    "C10",
+    "C11",
+    "C12",
+    "C13"
+  ],
+  "calibration_exact_matches": 12,
+  "calibration_count": 13,
+  "note": "거리 단독 조정 결과는 vector_v1에 보존했습니다. 현재 선택은 상위 3개 후보의 관련성·인용 문구를 검증합니다. 거리 임계값은 현재 선택에 사용하지 않습니다.",
+  "selection": "quote_checked_llm_rerank",
+  "candidate_count": 3
+}

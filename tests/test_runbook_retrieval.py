@@ -70,5 +70,15 @@ class RetrievalTests(unittest.TestCase):
         result=self.retriever.search('synthetic-cpu',[],max_results=100)
         self.assertLessEqual(len(result['hits']),2)
 
+    def test_relevance_filter_can_reject_close_but_inapplicable_candidates(self):
+        self.retriever.reranker=lambda queries,candidates:[]
+        self.assertEqual(self.retriever.search('synthetic-cpu',[])['status'],'not_found')
+
+    def test_quote_mismatch_cannot_become_a_selected_runbook(self):
+        self.retriever.reranker=lambda queries,candidates:[{'query_id':0,'runbook_id':'cpu-spike',
+            'query_quote':'fabricated quote','document_quote':'fabricated quote'}]
+        result=self.retriever.search('synthetic-cpu',[])
+        self.assertEqual(result['status'],'search_error');self.assertEqual(result['hits'],[])
+
 
 if __name__=='__main__':unittest.main()
