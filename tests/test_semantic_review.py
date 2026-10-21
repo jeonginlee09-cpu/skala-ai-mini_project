@@ -16,7 +16,8 @@ from tests import test_grounding as grounding_fixtures
 
 APPROVE = {'approved': True, 'issues': []}
 REJECT = {'approved': False, 'issues': [{'code':'IRRELEVANT_ACTION',
-    'target':'payments-service', 'action_ids':['A1'], 'message':'질문과 절차의 연결을 다시 검토하세요.'}]}
+    'target':'payments-service', 'action_ids':['A1'], 'draft_quote':'payments-service CPU',
+    'message':'질문과 절차의 연결을 다시 검토하세요.'}]}
 
 
 class ControlledReviewer:
@@ -44,16 +45,23 @@ class ReviewerContractTests(unittest.TestCase):
         for raw in [{**APPROVE,'report':{}}, {'approved':True,'issues':REJECT['issues']},
                     {'approved':False,'issues':[]}]:
             with self.subTest(raw=raw),self.assertRaises(ValueError):
-                parse_review(raw,['cache-service'],actions)
+                parse_review(raw,['cache-service'],actions,'상태')
 
     def test_unknown_target_and_action_are_rejected(self):
         from agent.semantic_review import parse_review
         _,actions,_=grounding_fixtures.GroundingTests().context()
         for target,ids in [('billing-service',['A1']),('cache-service',['A999'])]:
             raw={'approved':False,'issues':[{'code':'IRRELEVANT_ACTION','target':target,
-                 'action_ids':ids,'message':'근거를 확인하세요.'}]}
+                 'action_ids':ids,'draft_quote':'상태','message':'근거를 확인하세요.'}]}
             with self.subTest(target=target),self.assertRaises(ValueError):
-                parse_review(raw,['cache-service'],actions)
+                parse_review(raw,['cache-service'],actions,'상태')
+
+    def test_reviewer_cannot_invent_a_quote_from_the_draft(self):
+        from agent.semantic_review import parse_review
+        _,actions,_=grounding_fixtures.GroundingTests().context()
+        raw={'approved':False,'issues':[{'code':'UNSUPPORTED_CAUSE','target':'cache-service',
+             'action_ids':[],'draft_quote':'원인은 배포입니다','message':'단정입니다.'}]}
+        with self.assertRaises(ValueError):parse_review(raw,['cache-service'],actions,'원인은 아직 미확인입니다.')
 
     def test_new_request_does_not_inherit_previous_review(self):
         first=initial_state('질문','t','a',[])
@@ -94,6 +102,15 @@ class ReviewerGraphTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result['validation_attempts'],2)
         self.assertEqual(result['review_status'],'approved')
         self.assertIn('SEMANTIC_REVIEW',feedback[1])
+
+    async def test_comparison_feedback_can_be_repaired_without_inventing_a_cause(self):
+        reject={'approved':False,'issues':[{'code':'UNANSWERED_COMPARISON','target':'payments-service',
+            'action_ids':[],'draft_quote':'2) 원인 가설·권고','message':'현재값을 비교하고 한계를 설명하세요.'}]}
+        deps,state=self.setup_case([reject,APPROVE])
+        result=await graph.build_graph(deps).ainvoke(state)
+        self.assertIn('서비스 간 현재값 비교',result['final'])
+        self.assertIn('공통 원인·증가 추세는 확정할 수 없습니다',result['final'])
+        self.assertIn('시계열 지표·상세 로그·배포 이력',result['final'])
 
     async def test_second_rejection_does_not_force_pass(self):
         deps,state=self.setup_case([REJECT,REJECT])

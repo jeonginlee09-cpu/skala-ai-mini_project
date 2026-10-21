@@ -100,6 +100,8 @@ def render_report(report,evidence,actions,search_status='ok',uncovered_targets=N
         lines.append(f"- {a['target']} {prefix}: {a['text']}{suffix} [런북 {a['runbook_id']} 절차 {a['step_id']}]")
         unknowns.extend(a['missing_conditions'])
     lines.append('3) 미확인·근거')
+    lines.append('- 근거 범위: 현재 조회한 상태·CPU·메모리와 알림 원문 및 런북입니다.')
+    lines.append('- 미확보 자료: 시계열 지표·상세 로그·배포 이력·서비스 호출 관계입니다. 실제 원인과 추세는 확정하지 않았습니다.')
     for text in dict.fromkeys(unknowns):lines.append('- 미확인: '+text)
     if search_status=='partial':lines.append('- 일부 매뉴얼 원문을 확보하지 못했습니다. 확보한 자료 범위에서만 안내합니다.')
     elif search_status!='ok':lines.append('- 관련 매뉴얼을 확보하지 못했습니다. 상태: '+search_status+'; 임의 조치 안내는 보류합니다.')

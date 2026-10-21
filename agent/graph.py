@@ -454,7 +454,7 @@ async def review_node(state: AgentState, deps: SupervisorDeps) -> dict:
     try:
         raw, usage = await reviewer.review(state['query'], state['grounded_evidence'],
             state['action_catalog'], state['draft'], state['requested_targets'])
-        result = parse_review(raw, state['requested_targets'], state['action_catalog'])
+        result = parse_review(raw, state['requested_targets'], state['action_catalog'], state['draft'])
     except Exception as exc:
         return {'review_attempts':attempt,'review_status':'error',
             'review_result':{'error_type':type(exc).__name__},
@@ -465,6 +465,8 @@ async def review_node(state: AgentState, deps: SupervisorDeps) -> dict:
     return {'review_attempts':attempt, 'review_result':result,
         'review_status':'approved' if approved else 'rejected',
         'review_feedback':None if approved else rewrite_feedback(result),
+        'comparison_requested':state.get('comparison_requested',False) or (
+            len(state['verified_targets'])>1 and any(i['code']=='UNANSWERED_COMPARISON' for i in result['issues'])),
         'cost_usd':_cost(state,usage),
         'events':state['events']+[{'type':'ReviewerCompleted','attempt':attempt,'approved':approved,
             'issue_codes':[i['code'] for i in result['issues']],
