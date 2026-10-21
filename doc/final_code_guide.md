@@ -139,4 +139,6 @@ class ReportSelection(StrictModel):
 
 기술 개념의 수업자료 근거는 유지합니다. AI Agent 설계 및 구축 p.41·74~75는 Chroma·RAG, p.108·116~118은 역할 분리·검토를 설명합니다. Capstone p.148·155·165·170은 게이트·재계획·검수·반복 방지, p.209는 대화 지속성, p.217·219·221은 모듈·DI·테스트입니다. 정확한 필드명과 현재 횟수·보류 정책은 프로젝트의 구현 선택입니다.
 
-발표에는 [원본 대조표](original_final_feature_audit.md), [실제 응답](evidence/final_execution_examples.json), [실측 표](evidence/final_comparison.csv)를 근거로 사용하면 됩니다. 제품 코드와 기존 실측값은 그대로 보존했습니다.
+발표에는 [원본 대조표](original_final_feature_audit.md), [실제 응답](evidence/final_execution_examples.json), [실측 표](evidence/final_comparison.csv)를 근거로 사용하면 됩니다. 측정 당시 제품은 커밋 `69d58eb`에, 기존 실측값은 해당 증빙에 보존했습니다.
+
+화면 가독성 보완: 현재 브라우저에서는 서비스별 상태·추가 점검·참고 런북을 먼저 표시하고, 전체 근거와 원문을 접어서 제공합니다. 이는 원문 API·모델 입력·검수 로직을 유지한 화면 수정입니다. 이 문서의 66건 수치는 제품 `69d58eb`의 보존 기록이며 화면 수정 이후 성능을 새로 측정한 값은 아닙니다.

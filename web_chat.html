@@ -46,6 +46,33 @@
   }
   .steps .step::before { content: "⏳ "; }
   .steps .step.done::before { content: "✓ "; color: #7ee787; }
+  .progress-box { max-width: 900px; font-size: 12px; color: #b7b7d2; }
+  .progress-box summary { cursor: pointer; padding: 6px 0; }
+  .progress-box .steps { max-width: 100%; padding: 8px 14px; }
+  .row.agent .report-bubble {
+    width: min(100%, 900px); max-width: 100%; padding: 18px 20px;
+    font-size: 15px; line-height: 1.65; white-space: normal;
+  }
+  .report-bubble p { margin: 0 0 10px; }
+  .report-bubble .report-label { margin: 18px 0 8px; font-weight: 650; color: #fff; }
+  .report-bubble .report-label:first-child { margin-top: 0; }
+  .report-observations { list-style: none; padding: 0; margin: 0; }
+  .report-observations li + li { margin-top: 8px; }
+  .report-metrics { color: #dedeee; }
+  .report-bubble .report-limitation { margin-top: 14px; color: #c3c3dc; }
+  .report-actions { margin: 0; padding-left: 22px; }
+  .report-actions li + li { margin-top: 9px; }
+  .report-kind, .report-warning { color: #ffe58f; }
+  .report-source-number { color: #b4b4ff; font-size: 12px; white-space: nowrap; }
+  .report-bubble .report-sources { margin-top: 18px; font-size: 13px; color: #c3c3dc; }
+  .report-sources span + span::before { content: ' · '; }
+  .report-disclaimer { font-size: 12px; color: #b7b7d2; }
+  .report-details { border-top: 1px solid #50506a; margin-top: 14px; padding-top: 10px; }
+  .report-details summary { cursor: pointer; color: #c4c4ff; font-size: 13px; }
+  .report-details pre {
+    font: 13px/1.7 -apple-system, "Apple SD Gothic Neo", sans-serif;
+    white-space: pre-wrap; overflow-wrap: anywhere; margin: 12px 0 0;
+  }
   .prompt-box {
     flex-shrink: 0;   /* #log가 스크롤 영역이 되면서(min-height:0) <details>가 flex
                          자식으로서 내용 없이 찌그러지는 걸 방지 */
@@ -86,12 +113,44 @@
         <div class="bubble">{{ item.text }}</div>
       </div>
 
-      <div v-else-if="item.kind === 'steps'" class="steps">
-        <div v-for="(step, i) in item.steps" :key="i" class="step">{{ step }}</div>
-      </div>
+      <details v-else-if="item.kind === 'steps'" class="progress-box">
+        <summary>{{ item.steps.length ? item.steps[item.steps.length - 1] : '질문을 처리하고 있습니다' }} · 처리 과정 보기</summary>
+        <div class="steps">
+          <div v-for="(step, i) in item.steps" :key="i" class="step">{{ step }}</div>
+        </div>
+      </details>
 
       <div v-else-if="item.kind === 'agent'" class="row agent">
-        <div class="bubble">{{ item.text }}</div>
+        <div v-if="item.presentation" class="bubble report-bubble">
+          <p class="report-label">현재 상태</p>
+          <ul class="report-observations">
+            <li v-for="row in item.presentation.observations" :key="row.target">
+              <strong>{{ row.target }}</strong> · {{ row.status }}
+              <div class="report-metrics">CPU {{ row.cpu }} · 메모리 {{ row.memory }}</div>
+            </li>
+          </ul>
+          <p class="report-limitation">{{ item.presentation.limitation }}</p>
+          <template v-if="item.presentation.recommendations.length">
+            <p class="report-label">추가 점검</p>
+            <ol class="report-actions">
+              <li v-for="(check, i) in item.presentation.recommendations" :key="i">
+                <strong v-if="item.presentation.observations.length > 1">{{ check.target }}: </strong>
+                <span v-if="check.kind !== '추가 점검'" class="report-kind">{{ check.kind }}: </span>
+                {{ check.text }} <span class="report-source-number">[{{ check.source }}]</span>
+              </li>
+            </ol>
+          </template>
+          <p v-for="warning in item.presentation.warnings" :key="warning" class="report-warning">{{ warning }}</p>
+          <p v-if="item.presentation.sources.length" class="report-sources">
+            근거: <span v-for="(source, i) in item.presentation.sources" :key="source.id">[{{ i + 1 }}] {{ source.title }}</span>
+          </p>
+          <p class="report-disclaimer">{{ item.presentation.disclaimer }}</p>
+          <details class="report-details">
+            <summary>근거·전체 답변 보기</summary>
+            <pre>{{ item.text }}</pre>
+          </details>
+        </div>
+        <div v-else class="bubble">{{ item.text }}</div>
       </div>
 
       <details v-else-if="item.kind === 'prompt'" class="prompt-box">
@@ -103,6 +162,7 @@
   <form @submit.prevent="onSubmit">
     <input
       v-model="input"
+      aria-label="질문 입력"
       autocomplete="off"
       placeholder="예: auth-service 로그인 응답이 느려졌어요. 원인 확인해주세요"
     />
@@ -207,10 +267,13 @@ createApp({
         if (e.type === 'AnswerToken' || e.type === 'FinalAnswer' || e.type === 'ValidationFailed' || e.type === 'ReviewerFailed') {
           replyState = RequestUI.reduceReply(replyState, e);
           if (!streamItem) {
-            streamItem = reactive({ id: nextId++, kind: 'agent', text: '', requestId });
+            streamItem = reactive({ id: nextId++, kind: 'agent', text: '', presentation: null, requestId });
             log.value.push(streamItem);
           }
           streamItem.text = replyState.text;
+          // Only the completed, validated report gets the compact view.
+          // Chat and failure text keep their original presentation.
+          if (e.type === 'FinalAnswer') streamItem.presentation = RequestUI.presentReport(replyState.text);
           if (e.type === 'FinalAnswer' && e.prompt)
             log.value.push({ id: nextId++, kind: 'prompt', text: e.prompt, requestId });
           scrollToBottom();

@@ -34,12 +34,33 @@ def main():
         {'server.py', 'mcp_server.py', 'mcp_server_docs.py', 'request_ui.js', 'web_chat.html', 'web_demo_server.py',
          'requirements.txt', 'requirements-rag.lock.txt', 'data/monitoring.json', 'data/runbook_rules.json'}
         or name.startswith('data/runbooks/')]
-    assert all(hashlib.sha256((ROOT / name).read_bytes()).hexdigest() == manifest['sources']['latest'][name]
-               for name in product_files), 'Current runtime source differs from measured code'
+    changed_runtime = sorted(name for name in product_files
+                             if hashlib.sha256((ROOT / name).read_bytes()).hexdigest()
+                             != manifest['sources']['latest'][name])
+    # The paired benchmark remains bound to its recorded commit. The later UI
+    # change has separate source hashes and receipts; it is not a new benchmark.
+    assert changed_runtime == ['request_ui.js', 'web_chat.html'], changed_runtime
+    submission = json.loads((ROOT / 'doc/evidence/submission_validation.json').read_text())
+    readability = submission['ui_readability']
+    assert readability['measured_product_commit'] == manifest['latest_commit']
+    assert sorted(readability['source_sha256']) == changed_runtime
+    for name, digest in readability['source_sha256'].items():
+        assert hashlib.sha256((ROOT / name).read_bytes()).hexdigest() == digest
+    for name, digest in readability['receipt_sha256'].items():
+        assert hashlib.sha256((ROOT / name).read_bytes()).hexdigest() == digest
     python_log = (OUT / 'green_tests.log').read_text()
     ui_log = (OUT / 'green_ui.log').read_text()
     assert re.search(r'Ran 90 tests', python_log) and python_log.rstrip().endswith('OK')
     assert re.search(r'(?m)^[#ℹ] pass 5$', ui_log) and re.search(r'(?m)^[#ℹ] fail 0$', ui_log)
+    current_python = (ROOT / 'evidence/readability_20261021/python_tests.log').read_text()
+    current_ui = (ROOT / 'evidence/readability_20261021/ui_tests.log').read_text()
+    assert re.search(r'Ran 90 tests', current_python) and current_python.rstrip().endswith('OK')
+    assert re.search(r'(?m)^[#ℹ] pass 11$', current_ui) and re.search(r'(?m)^[#ℹ] fail 0$', current_ui)
+    live_demo = json.loads((ROOT / 'evidence/readability_20261021/live_demo.json').read_text())
+    assert live_demo['full_detail_expansion_checked'] and live_demo['full_evidence_id_in_detail']
+    assert not live_demo['full_evidence_id_in_compact']
+    assert live_demo['sources_visible'] and live_demo['disclaimer_visible']
+    assert live_demo['console_errors'] == live_demo['console_warnings'] == 0
     checked_docs = ['README.md', 'doc/final_code_guide.md', 'doc/final_comparison.md',
                     'doc/report.md', 'doc/README.md', 'doc/presentation_script.md', 'doc/original_final_feature_audit.md']
     broken = []
@@ -86,16 +107,21 @@ def main():
     for feature in audit['features']:
         for key in ['original_evidence', 'final_evidence']:
             for evidence in feature[key]:
-                raw = (subprocess.check_output(['git', 'show', audit['original_commit'] + ':' + evidence['path']], cwd=ROOT)
-                       if key == 'original_evidence' else (ROOT / evidence['path']).read_bytes())
+                commit = audit['original_commit'] if key == 'original_evidence' else audit['final_product_commit']
+                raw = subprocess.check_output(['git', 'show', commit + ':' + evidence['path']], cwd=ROOT)
                 assert hashlib.sha256(raw).hexdigest() == evidence['sha256']
                 assert evidence['needle'] in raw.decode().splitlines()[evidence['line']-1]
     for name in audit['unchanged_files']:
         assert (ROOT / name).read_bytes() == subprocess.check_output(['git', 'show', audit['original_commit']+':'+name], cwd=ROOT)
     for name in checked_docs:
         assert not any(word in (ROOT / name).read_text() for word in ['직전', '중간 버전', '최대 두 문서', '두 개 제한'])
-    payload = {'product_commit': manifest['latest_commit'], 'measured_runtime_files_unchanged': len(product_files),
-        'python_tests_passed': 90, 'ui_tests_passed': 5, 'api_comparison_requests': 66,
+    payload = {'measured_product_commit': manifest['latest_commit'],
+        'measured_runtime_files_unchanged': len(product_files) - len(changed_runtime),
+        'current_ui_files_changed_since_measurement': changed_runtime,
+        'backend_runtime_unchanged_since_measurement': True,
+        'python_tests_passed': 90, 'ui_tests_passed': 11, 'measured_product_ui_tests_passed': 5,
+        'ui_readability': readability, 'current_ui_performance_remeasured': False,
+        'api_comparison_requests': 66,
         'feature_checks_passed': 10, 'warmup_requests_excluded': 8, 'langsmith_runs_verified': 84,
         'pptx_slides': 9, 'pptx_native_tables': 1, 'pptx_notes': 9,
         'pptx_sha256': receipt['finalSha256'], 'all_slides_visually_reviewed': True,

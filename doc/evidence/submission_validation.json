@@ -18,8 +18,39 @@
   "presentation_code_part_minutes": 3,
   "same_input_capture_pair": true,
   "paired_run_statistics_changed": false,
-  "product_runtime_changed": false,
   "cleanup_obsolete_doc_files": 19,
   "doc_root_files": 6,
-  "new_human_scoring_or_invoice_claim": false
+  "new_human_scoring_or_invoice_claim": false,
+  "report_preparation_changed_product_runtime": false,
+  "ui_readability": {
+    "scope": "화면 표시만 변경; 기존 보고서·PPT 실측과 별도",
+    "measured_product_commit": "69d58ebbc7d77911f708bfccf54884f27f7eae7e",
+    "source_sha256": {
+      "request_ui.js": "7072c43b566f8153f1b3bdfdb0957db20027e919a33463847dc628b2c5538dc9",
+      "web_chat.html": "2d37a68200b3207ae7249a7400b5a6d7332ad1fb0970fb0cd4291b6ca9f04ff9"
+    },
+    "receipt_sha256": {
+      "evidence/readability_20261021/python_tests.log": "887657a5fc69af57251527b58355a78853e25d7465a8182ace1272dd33fa1009",
+      "evidence/readability_20261021/ui_tests.log": "409799eca6102defe94e69027a50eac438bd6de749f4f00de73b19f156fad36e",
+      "evidence/readability_20261021/live_demo.json": "c18b88a1966769f8094345100b21dec202313a6f47df0d912cf610dc4a3aa739",
+      "doc/assets/readable_answer.jpg": "62e299bf843e592742aa58096b929069b5a7c7ccfc0b6df4d18a4fa71ee6695b"
+    },
+    "python_tests_passed": 90,
+    "ui_tests_passed": 11,
+    "live_demo": {
+      "question": "payments-service 결제 응답이 느려지고 CPU가 치솟았어요, 원인 확인해주세요",
+      "raw_characters": 1673,
+      "compact_visible_characters": 315,
+      "full_evidence_id_in_detail": true,
+      "full_evidence_id_in_compact": false,
+      "sources_visible": true,
+      "disclaimer_visible": true,
+      "full_detail_expansion_checked": true,
+      "console_errors": 0,
+      "console_warnings": 0
+    },
+    "new_model_summary_call": false,
+    "model_input_or_raw_reply_changed": false,
+    "performance_benchmark_rerun": false
+  }
 }

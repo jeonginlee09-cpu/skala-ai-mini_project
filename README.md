@@ -25,6 +25,12 @@ FastAPI lifespan, MCP 별도 stdio 프로세스, DI, LangGraph·LangSmith, 병�
 
 최종 증빙은 `doc/evidence/`, 실제 실행 캡처는 `doc/assets/`에 정리했습니다. 원시 실행 자료와 원본 백업은 보존했습니다. 자동 처리·검수 통과는 독립 평가자의 정답률이 아니며 실제 청구액은 미측정입니다.
 
+## 답변 화면의 가독성 보완
+
+현재 화면은 상태·CPU·메모리를 서비스별로 묶고, 추가 점검과 참고 런북을 먼저 보여줍니다. 긴 근거 ID·알림 원문·원인 가설·전체 답변은 **근거·전체 답변 보기**, 진행 이벤트는 **처리 과정 보기**에서 펼칠 수 있습니다. 조건부 권고의 조건과 자료 부족 경고는 본문에도 남깁니다. 일반 대화·실패 안내·알 수 없는 형식은 원문을 표시합니다.
+
+이 변경은 `request_ui.js`·`web_chat.html`의 표시 방식입니다. 검수·검색·모델 입력·API 답변·대화 저장의 원문은 바꾸지 않았고, 요약용 모델 호출도 추가하지 않았습니다. [실제 짧은 답변 캡처](doc/assets/readable_answer.jpg)를 확인할 수 있습니다. 보고서·PPT의 전후 실측은 제품 `69d58eb`을 대상으로 한 기록이며 이 화면 수정의 성능 실측으로 해석하지 않습니다.
+
 ## 실행 방법
 
 Python 3.11과 uv를 준비한 뒤 다음을 실행합니다. 이미 `.venv-rag`가 있다면 다시 만들 필요가 없습니다.
@@ -99,7 +105,7 @@ POST `/chat` 입력은 `message`, `thread_id`, `request_id`를 사용합니다. 
 
 ```bash
 LANGSMITH_TRACING=false LANGCHAIN_TRACING_V2=false .venv-rag/bin/python -m unittest discover -s tests -v
-node --test tests/test_request_ui.cjs
+node --test tests/*.cjs
 ```
 
 자동 검사는 통제된 모델·도구를 사용합니다. 실제 API 비교는 별도 실행입니다. 기존 측정 폴더를 덮어쓰지 않도록 새 경로와 프로젝트 접두어를 정합니다.
