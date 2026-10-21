@@ -112,6 +112,8 @@ class OpenAILLM:
 class OpenAIFastLLM(OpenAILLM):
     """분류·계획·단순 대화 전담 (저비용 모델, 기본 gpt-4o-mini)."""
 
+    native_message_stream = True
+
     @traceable(run_type="llm", name="openai_fast.route")
     def route(self, query: str) -> tuple[dict, dict]:
         system = ("당신은 ICT 운영 지원 라우터다. 사용자 요청을 분류하라. "
@@ -194,18 +196,29 @@ class OpenAIFastLLM(OpenAILLM):
 
     @traceable(run_type="llm", name="openai_fast.chat")
     async def chat(self, query: str, history: list[dict], on_token=None) -> tuple[str, dict]:
-        """ollama_llm.py와 인터페이스(on_token 콜백)만 맞춘다 — OpenAI Chat Completions를
-        아직 stream=True로 호출하지 않아 토큰 단위 중계는 하지 않고 완성된 응답을 한 번에
-        전달한다."""
+        """일반 대화는 실제 provider 조각을 LangGraph messages로 전달합니다."""
         system = ("당신은 간결한 한국어 비서다. 한두 문장으로 답하라. "
                   "대화 이력에서 사용자가 밝힌 이름이 있으면 정확히 기억해 답하라.")
         rendered = "\n".join(f"{m['role']}: {m['content']}" for m in history[-10:])
         user = (f"## 지금까지의 대화\n{rendered or '(없음)'}\n\n"
                 f"## 사용자의 새 메시지\n{query}")
-        content, usage = self._chat(system, user)
-        usage["prompt"] = f"[SYSTEM]\n{system}\n\n[USER]\n{user}"
-        if on_token is not None:
-            on_token(content)
+        from .openai_stream import OpenAIStreamModel
+        model = OpenAIStreamModel(model=self.model, api_key=self.api_key)
+        pieces, measured = [], None
+        async for chunk in model.astream([{"role": "system", "content": system},
+                                          {"role": "user", "content": user}]):
+            if chunk.content:
+                pieces.append(chunk.content)
+                if on_token is not None:
+                    on_token(chunk.content)
+            if chunk.usage_metadata:
+                measured = chunk.usage_metadata
+        if measured is None:
+            raise RuntimeError("openai_stream_usage_missing")
+        content = "".join(pieces)
+        usage = {"model": self.name, "tokens": measured["total_tokens"],
+                 "usd": round(measured["total_tokens"] / 1000 * self.usd_per_1k, 6),
+                 "prompt": f"[SYSTEM]\n{system}\n\n[USER]\n{user}"}
         return content, usage
 
 

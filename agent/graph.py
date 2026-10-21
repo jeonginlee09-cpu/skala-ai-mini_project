@@ -32,6 +32,16 @@ MAX_COVERAGE_RETRIES = 1
 MAX_REPORT_ATTEMPTS = 3  # Initial draft + at most two rewrites; never force-pass.
 
 
+def _progress_writer():
+    """Direct node calls have no stream consumer; graph calls use its real writer."""
+    try:
+        return get_stream_writer()
+    except RuntimeError as exc:
+        if str(exc) != 'Called get_config outside of a runnable context':
+            raise
+        return lambda event: None
+
+
 def _load_known_systems() -> set[str]:
     """ollama_llm.py/openai_llm.py와 동일한 소스(data/monitoring.json)에서
     시스템 목록을 읽는다 — plan_node가 MCP Prompt에 넘길 system_name을
@@ -100,7 +110,7 @@ def _cost(state: AgentState, usage: dict) -> float:
 @traceable(name="route_node")
 async def route_node(state: AgentState, deps: SupervisorDeps) -> dict:
     """Wave 5 — 모든 쿼리가 무거운 파이프라인을 탈 필요는 없다."""
-    result, usage = deps.fast_llm.route(state["query"])
+    result, usage = await asyncio.to_thread(deps.fast_llm.route, state["query"])
     event = {"type": "RouteDecided", "route": result["route"],
              'tokens':usage.get('tokens'),'model':usage.get('model')}
     return {"route": result["route"], "needs_analysis": result["needs_analysis"],
@@ -116,9 +126,11 @@ async def chat_answer_node(state: AgentState, deps: SupervisorDeps) -> dict:
     때만 실제로 전송되고, /chat(ainvoke)처럼 스트리밍하지 않는 호출에서는 자동으로
     no-op이 된다."""
     writer = get_stream_writer()
+    # Native OpenAI chunks are consumed from messages. Other adapters retain custom.
+    native = getattr(deps.fast_llm, "native_message_stream", False)
     reply, usage = await deps.fast_llm.chat(
         state["query"], state.get("history", []),
-        on_token=lambda piece: writer({"type": "AnswerToken", "delta": piece}))
+        on_token=None if native else lambda piece: writer({"type": "AnswerToken", "delta": piece}))
     return {"final": reply, "last_prompt": usage.get("prompt"),
             "cost_usd": _cost(state, usage),
             "events": state["events"] + [{"type": "Finalize", "pipeline": "chat-direct"}]}
@@ -137,7 +149,7 @@ async def plan_node(state: AgentState, deps: SupervisorDeps) -> dict:
         {"system_name": ', '.join(expected), "symptom": state["query"]},
         server=prompt_server,
     )
-    result, usage = deps.fast_llm.plan(state["query"], procedure)
+    result, usage = await asyncio.to_thread(deps.fast_llm.plan, state["query"], procedure)
     targets = [t["target"] for t in result["tasks"]
                if t["agent"] == "research" and t.get("target")]
     event = {"type": "PlanCreated", "task_count": len(result["tasks"]),
@@ -188,6 +200,11 @@ async def research_node(state: AgentState, deps: SupervisorDeps) -> dict:
     async def run_one(idx: int) -> dict:
         task = tasks[idx]
         await asyncio.sleep(RESEARCH_DELAY_SECONDS)
+        writer = _progress_writer()
+        call_id = f"{state.get('request_id', 'direct')}:{task['id']}"
+        tool_name = 'get_monitoring_status' if task['kind'] == 'monitoring' else 'read_runbook'
+        base = {'call_id':call_id, 'name':tool_name, 'target':task['target']}
+        writer({'type':'ToolCallStart', **base})
         if task["kind"] == "monitoring":
             try:
                 data, retries = await with_retry(
@@ -195,15 +212,22 @@ async def research_node(state: AgentState, deps: SupervisorDeps) -> dict:
                     {"system_name": task["target"]})
                 error = monitoring_error(data, task['target'])
                 if error is None:
+                    writer({'type':'ToolCallEnd', **base, 'retries':retries})
                     return {"idx":idx, "source":"monitoring", "data":data, "retries":retries}
             except Exception as exc:
                 # A failed tool is an unavailable measurement, never a zero/healthy value.
                 error = type(exc).__name__
                 retries = 2 if isinstance(exc, asyncio.TimeoutError) else 0
+            writer({'type':'ToolCallError', **base, 'error_type':error})
             return {"idx":idx, "source":"monitoring_error", "retries":retries,
                     "data":{"system_name":task['target'], "error_type":error}}
         uri = runbook_uri_template.format(incident_type=task["target"])
-        data = await deps.mcp.read_resource(uri, server=runbook_server)
+        try:
+            data = await deps.mcp.read_resource(uri, server=runbook_server)
+        except Exception as exc:
+            writer({'type':'ToolCallError', **base, 'error_type':type(exc).__name__})
+            raise
+        writer({'type':'ToolCallEnd', **base})
         return {"idx": idx, "source": "runbook", "data": data, "retries": 0}
 
     started = time.perf_counter()
@@ -220,7 +244,7 @@ async def research_node(state: AgentState, deps: SupervisorDeps) -> dict:
         retry_total += r["retries"]
         events.append({"type": 'TaskFailed' if failed else 'TaskCompleted', "id": new_tasks[r["idx"]]["id"],
                        "source": r["source"], "target": new_tasks[r["idx"]]["target"],
-                       "retries": r["retries"],
+                       "retries": r["retries"], 'streamed':True,
                        **({'error_type':r['data']['error_type']} if failed else {})})
     return {"tasks": new_tasks, "collected": collected, "retry_count": retry_total,
             "parallel_elapsed": elapsed, "events": events}
@@ -280,13 +304,18 @@ async def replan_check_node(state: AgentState, deps: SupervisorDeps) -> dict:
 
 @traceable(name='retrieve_runbooks_node')
 async def retrieve_runbooks_node(state: AgentState,deps: SupervisorDeps) -> dict:
+    writer=_progress_writer()
     evidence=build_evidence(state.get('collected',[]),state['request_id'])
     retriever=getattr(deps,'retriever',None);events=list(state['events']);search_count=0
     result={'status':'disabled_offline','hits':[]};books=[];errors=[]
     if retriever is not None:
         monitoring=[r['data'] for r in state['collected'] if r['source']=='monitoring']
         for attempt in range(2):
+            base={'call_id':f"{state['request_id']}:search:{attempt}", 'name':'search_runbooks', 'target':'runbooks'}
+            writer({'type':'ToolCallStart', **base})
             result=await asyncio.to_thread(retriever.search,state['query'],monitoring,retry=bool(attempt))
+            writer({'type':'ToolCallError' if result['status']=='search_error' else 'ToolCallEnd',
+                    **base,'status':result['status']})
             search_count+=1
             events.append({'type':'RunbookSearch','attempt':search_count,'status':result['status'],
                 'runbook_ids':[r['runbook_id'] for r in result['hits']],
@@ -298,6 +327,8 @@ async def retrieve_runbooks_node(state: AgentState,deps: SupervisorDeps) -> dict
                 resource_server,template=await deps.mcp.find_resource_template('get_incident_runbook')
                 for hit in result['hits'][:2]:
                     key=hit['runbook_id']
+                    base={'call_id':f"{state['request_id']}:runbook:{key}", 'name':'read_runbook', 'target':key}
+                    writer({'type':'ToolCallStart', **base})
                     try:
                         if key not in retriever.catalog:raise ValueError('unregistered_runbook_id')
                         text=await deps.mcp.read_resource(template.format(incident_type=key),server=resource_server)
@@ -307,8 +338,11 @@ async def retrieve_runbooks_node(state: AgentState,deps: SupervisorDeps) -> dict
                         targets=[t for t in hit.get('targets',[]) if t in state['verified_targets']]
                         if not targets and len(state['verified_targets'])==1:targets=list(state['verified_targets'])
                         books.append({**hit,'text':text,'targets':targets})
+                        writer({'type':'ToolCallEnd', **base})
                         events.append({'type':'RunbookLoaded','runbook_id':key,'content_hash':hit['content_hash']})
-                    except Exception as exc:errors.append({'runbook_id':key,'error_type':type(exc).__name__})
+                    except Exception as exc:
+                        writer({'type':'ToolCallError', **base, 'error_type':type(exc).__name__})
+                        errors.append({'runbook_id':key,'error_type':type(exc).__name__})
             except Exception as exc:errors.append({'error_type':type(exc).__name__})
     status=result['status']
     if result['hits'] and not books:status='read_error'

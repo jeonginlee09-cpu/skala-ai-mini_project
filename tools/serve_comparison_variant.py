@@ -9,6 +9,7 @@ import sys
 import threading
 import time
 from functools import partial
+from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import parse_qs
 
@@ -18,6 +19,7 @@ parser.add_argument('--source', type=Path, required=True)
 parser.add_argument('--variant', required=True)
 parser.add_argument('--port', type=int, required=True)
 parser.add_argument('--out', type=Path, required=True)
+parser.add_argument('--trace-project-prefix', default='capstone-3way')
 args = parser.parse_args()
 source, out = args.source.resolve(), args.out.resolve()
 out.mkdir(parents=True, exist_ok=True)
@@ -26,8 +28,8 @@ load_dotenv(PROJECT / '.env')
 os.environ.update(LLM_BACKEND='openai', SUPERVISOR_VERSION='v2',
     SESSION_DB_PATH=str(source / 'comparison_sessions.db'),
     BENCHMARK_SOURCE=str(source), RUNBOOK_INDEX_PATH=str(source / '.runbook_index'),
-    LANGSMITH_PROJECT='capstone-3way-' + args.variant + '-20261021',
-    LANGCHAIN_PROJECT='capstone-3way-' + args.variant + '-20261021',
+    LANGSMITH_PROJECT=args.trace_project_prefix + '-' + args.variant + '-20261021',
+    LANGCHAIN_PROJECT=args.trace_project_prefix + '-' + args.variant + '-20261021',
     LANGSMITH_TRACING='true', LANGCHAIN_TRACING_V2='true')
 os.chdir(source)
 sys.path.insert(0, str(source))
@@ -62,6 +64,45 @@ def observed_post(url, *positional, **kwargs):
 
 
 httpx.post = observed_post
+
+# Streaming requests expose usage in the provider's last SSE JSON, not response.json().
+real_stream = httpx.AsyncClient.stream
+
+
+@asynccontextmanager
+async def observed_stream(client, method, url, *positional, **kwargs):
+    started = time.perf_counter()
+    async with real_stream(client, method, url, *positional, **kwargs) as response:
+        if not str(url).startswith('https://api.openai.com/v1/'):
+            yield response
+            return
+        payload = kwargs.get('json', {})
+        measured = {'usage': {}, 'model': payload.get('model'), 'pieces': []}
+        lines = response.aiter_lines
+
+        async def observe_lines():
+            async for line in lines():
+                if line.startswith('data:') and line[5:].strip() != '[DONE]':
+                    data = json.loads(line[5:].strip())
+                    measured['model'] = data.get('model', measured['model'])
+                    if data.get('usage'): measured['usage'] = data['usage']
+                    choices = data.get('choices', [])
+                    text = choices[0].get('delta', {}).get('content') if choices else None
+                    if text: measured['pieces'].append(text)
+                yield line
+
+        response.aiter_lines = observe_lines
+        try:
+            yield response
+        finally:
+            record({'kind':'provider', 'endpoint':str(url).rsplit('/',1)[-1],
+                'model':measured['model'], 'http_status':response.status_code,
+                'seconds':time.perf_counter()-started, 'usage':measured['usage'],
+                'messages':payload.get('messages'), 'output':''.join(measured['pieces']),
+                'transport':'stream'})
+
+
+httpx.AsyncClient.stream = observed_stream
 
 import langsmith
 real_traceable = langsmith.traceable

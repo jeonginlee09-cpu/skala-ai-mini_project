@@ -116,12 +116,15 @@
 const { createApp, ref, reactive, nextTick } = Vue;
 
 const STEP_LABELS = {
+  ToolCallStart: e => `${e.name} 실행 시작 (${e.target})`,
+  ToolCallEnd: e => `${e.name} 실행 완료 (${e.target})${e.status ? ' · '+e.status : ''}${e.retries ? ' · 재시도 성공' : ''}`,
+  ToolCallError: e => `${e.name} 실행 실패 (${e.target})${e.error_type ? ' · '+e.error_type : ''}`,
   PlanCreated: e => `계획 수립: 할 일 ${e.task_count}가지${e.targets?.length ? ` (시스템: ${e.targets.join(', ')})` : ''}`,
   GateApplied: e => e.removed_analysis_tasks ? `불필요한 작업 ${e.removed_analysis_tasks}건 제거` : null,
   PlanCoverageChecked: e => `조사 대상 확정: ${e.requested_targets.join(', ')} (누락 보완 ${e.added_targets.length}건 · 추가 대상 제외 ${e.removed_targets.length}건 · 중복 제거 ${e.duplicate_count}건)`,
   CoverageChecked: e => e.unverified_targets.length ? `조회 근거 미확인: ${e.unverified_targets.join(', ')}` : '요청 대상의 조회 근거 확인 완료',
-  TaskFailed: e => `모니터링 미확인 (시스템: ${e.target}, 사유: ${e.error_type})`,
-  TaskCompleted: e => (e.source === 'monitoring'
+  TaskFailed: e => e.streamed ? null : `모니터링 미확인 (시스템: ${e.target}, 사유: ${e.error_type})`,
+  TaskCompleted: e => e.streamed ? null : (e.source === 'monitoring'
       ? `모니터링 지표 확인 (시스템: ${e.target})`
       : `대응 매뉴얼(runbook) 조회 (장애유형: ${e.target})`) + (e.retries ? ' (재시도 성공)' : ''),
   ReplanCheck: e => e.reason === 'coverage_retry' ? `미확인 대상만 재조회: ${e.missing_targets.join(', ')}`

@@ -222,12 +222,23 @@ async def chat_stream(message: str, thread_id: str = "default",
                     final, last_prompt = result['final'], result.get('last_prompt')
                 else:
                     seen, final, last_prompt = 0, "", None
+                    emitted = set()
                     response_status='success'
                     config = {"metadata":{"request_id":rid,"conversation_id":thread_id}}
                     async for mode, payload in app.state.graph.astream(
                             initial_state(message, thread_id, rid, history), config=config,
-                            stream_mode=["updates", "custom"]):
+                            stream_mode=["messages", "updates", "custom"]):
+                        if mode == "messages":
+                            chunk, metadata = payload
+                            # Structured incident drafts and internal model decisions stay private.
+                            if metadata.get('langgraph_node') == 'chat_answer' and chunk.content:
+                                yield encode({'type':'AnswerToken','delta':chunk.content})
+                            continue
                         if mode == "custom":
+                            if payload.get('call_id'):
+                                key=(payload['call_id'],payload['type'])
+                                if key in emitted:continue
+                                emitted.add(key)
                             yield encode(payload)
                             continue
                         for node_name, delta in payload.items():
