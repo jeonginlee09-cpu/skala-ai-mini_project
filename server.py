@@ -155,6 +155,8 @@ async def version():
 def _metadata(result: dict, run_id: str | None) -> dict:
     return {
         "request_id": result.get("request_id"),
+        'effective_query':result.get('effective_query',result.get('query')),
+        'context_resolution':result.get('context_resolution',{}),
         "requested_targets": result.get("requested_targets",[]),
         "verified_targets": result.get("verified_targets",[]),
         "unverified_targets": result.get("unverified_targets",[]),

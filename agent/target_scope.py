@@ -1,18 +1,12 @@
 """Deterministic request scope and successful-evidence checks."""
 import math
-import re
 from numbers import Real
+from .request_context import named_targets
 
 
 def requested_targets(query: str, known_systems: set[str]) -> list[str]:
-    matches = []
-    for name in known_systems:
-        pattern = r'(?<![A-Za-z0-9_-])' + re.escape(name) + r'(?![A-Za-z0-9_-])'
-        match = re.search(pattern, query, re.IGNORECASE)
-        if match:
-            matches.append((match.start(), name))
     # Preserve the existing Q07/Q08 auth fallback policy, explicitly.
-    return [name for _, name in sorted(matches)] or ['auth-service']
+    return named_targets(query,known_systems) or ['auth-service']
 
 
 def enforce_scope(tasks: list[dict], expected: list[str]) -> tuple[list[dict], dict]:

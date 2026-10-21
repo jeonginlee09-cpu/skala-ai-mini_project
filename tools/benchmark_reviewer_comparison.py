@@ -35,9 +35,15 @@ def snapshot(name, ref):
 
 
 async def main():
+    global OUT
     parser = argparse.ArgumentParser()
     parser.add_argument("--latest-ref", default="HEAD")
+    parser.add_argument('--out')
+    parser.add_argument('--trace-prefix',default='capstone-reviewer-comparison')
+    parser.add_argument('--warm-cache',action='store_true')
+    parser.add_argument('--extra-cases')
     args = parser.parse_args()
+    if args.out:OUT=ROOT/args.out
     if OUT.exists():
         raise RuntimeError("Previous measurement must be preserved; choose a fresh output path")
     OUT.mkdir(parents=True)
@@ -47,6 +53,7 @@ async def main():
     cases = json.loads((ROOT / "evidence/test_cases.json").read_text())
     manifest = {"started_at": datetime.now().astimezone().isoformat(), "rounds": 3,
         "python": sys.version, "ports": PORTS, "latest_commit": ref, "sources": {},
+        'trace_project_prefix':args.trace_prefix,
         "conditions": [
             "Same 11 inputs three times per version, 33 requests each; 24 incident and 9 chat inputs.",
             "Real OpenAI, FastAPI/SSE and MCP stdio; fixed class sample, jitter=0, timestamp=2026-10-21T09:00:00+09:00.",
@@ -67,7 +74,7 @@ async def main():
             logs.append(log)
             processes.append(subprocess.Popen([sys.executable, "-u", str(ROOT / "tools/serve_comparison_variant.py"),
                 "--source", str(source), "--variant", name, "--port", str(PORTS[name]),
-                "--out", str(OUT / "telemetry"), "--trace-project-prefix", "capstone-reviewer-comparison"],
+                "--out", str(OUT / "telemetry"), "--trace-project-prefix", args.trace_prefix],
                 cwd=source, stdout=log, stderr=subprocess.STDOUT,
                 env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1", "REVIEWER_MODE": "conditional"}))
         async with httpx.AsyncClient(trust_env=False, timeout=180) as client:
@@ -83,6 +90,15 @@ async def main():
                 else:
                     raise RuntimeError("Startup failed: " + name)
             (OUT / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2))
+            if args.warm_cache:
+                warmups=[]
+                for case in cases:
+                    if case['expected_targets']:
+                        warmups.append(await common.collect(client,'latest',{**case,'id':'WARM-'+case['id']},0))
+                (OUT/'warmup_results.json').write_text(json.dumps(warmups,ensure_ascii=False,indent=2))
+                manifest['warmup_requests']=len(warmups)
+                manifest['conditions'].append('Latest warmup requests are saved separately; excluded from the 66 comparison outcomes and usage totals.')
+                (OUT/'manifest.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2))
             results = []
             for repeat in range(1, 4):
                 for index, case in enumerate(cases):
@@ -99,6 +115,11 @@ async def main():
                             json.dumps(row, ensure_ascii=False, indent=2))
                         results.append(row)
             (OUT / "all_results.json").write_text(json.dumps(results, ensure_ascii=False, indent=2))
+            if args.extra_cases:
+                features=[]
+                for case in json.loads((ROOT/args.extra_cases).read_text()):
+                    features.append(await common.collect(client,'latest',case,1))
+                (OUT/'feature_results.json').write_text(json.dumps(features,ensure_ascii=False,indent=2))
     finally:
         for process in processes:
             process.terminate()

@@ -11,7 +11,7 @@ ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT))
 from dotenv import load_dotenv
 from agent.embeddings import OpenAIEmbedding
 from agent.runbook_retriever import RunbookRetriever,digest
-from agent.graph import _classify_incident_type
+from tools.baseline_runbook_selection import classify_incident_type
 
 parser=argparse.ArgumentParser();parser.add_argument('--calibrate',action='store_true')
 parser.add_argument('--rerank',action='store_true');parser.add_argument('--heldout',action='store_true')
@@ -48,15 +48,15 @@ searcher.max_distance=policy['max_distance'];searcher.secondary_margin=policy['s
 if args.rerank:
     from agent.relevance import OpenAIRelevanceFilter
     searcher.reranker=OpenAIRelevanceFilter(ROOT/'.runbook_index')
-    policy={**policy,'selection':'quote_checked_llm_rerank','candidate_count':3,
+    policy={**policy,'selection':'quote_checked_llm_rerank','candidate_count':len(searcher.catalog),
         'model':searcher.embedder.model,'relevance_model':searcher.reranker.model,
         'corpus_hash':digest(json.dumps({k:v['content_hash'] for k,v in searcher.catalog.items()},sort_keys=True)),
-        'note':'거리 단독 조정 결과는 vector_v1에 보존했습니다. 현재 선택은 상위 3개 후보의 관련성·인용 문구를 검증합니다. 거리 임계값은 현재 선택에 사용하지 않습니다.'}
+        'note':'현재 여섯 문서를 관련성·인용 문구로 검사하며 두 개 고정 제한을 사용하지 않습니다. 거리 임계값은 관련성 모델 사용 시 선택에 사용하지 않습니다.'}
     (ROOT/'data/retrieval_policy.json').write_text(json.dumps(policy,ensure_ascii=False,indent=2))
 results=[]
 for case in cases['heldout'] if args.heldout else cases['evaluation']:
     rows=case.get('monitoring') or [{'system_name':'fixture','alerts':[case['question']]}]
-    began=time.perf_counter();old=_classify_incident_type([{'source':'monitoring','data':r} for r in rows])
+    began=time.perf_counter();old=classify_incident_type([{'source':'monitoring','data':r} for r in rows])
     old_seconds=time.perf_counter()-began
     new=searcher.search(case['question'],case.get('monitoring',[]));ids=[r['runbook_id'] for r in new['hits']]
     gold=set(case['gold']);found=set(ids)

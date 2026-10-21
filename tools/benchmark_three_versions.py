@@ -45,7 +45,8 @@ def snapshot_source(name, optimized_ref):
 
 async def collect(client, variant, case, repeat):
     request_id = f"cmp-{variant}-{case['id']}-r{repeat:02d}"
-    thread = f"cmp-{variant}-memory-{repeat}" if case['id'].startswith('Q10') else request_id
+    thread = (f"cmp-{variant}-{case['thread_id']}-r{repeat}" if case.get('thread_id') else
+              f"cmp-{variant}-memory-{repeat}" if case['id'].startswith('Q10') else request_id)
     dest = OUT / 'runs' / request_id
     dest.mkdir(parents=True, exist_ok=False)
     row = {'request_id': request_id, 'variant': variant, 'case_id': case['id'], 'round': repeat,

@@ -14,7 +14,7 @@ import json
 import time
 from functools import partial
 from pathlib import Path
-from typing import Any, TypedDict
+from typing import TypedDict
 
 from langgraph.config import get_stream_writer
 from langgraph.graph import END, StateGraph
@@ -28,6 +28,7 @@ from .grounded_report import render_report
 from .runbook_retriever import digest
 from .validator import prepare_actions,validate_report
 from .semantic_review import review_policy, parse_review, rewrite_feedback
+from .request_context import resolve_followup
 
 RESEARCH_DELAY_SECONDS = 0.35
 MAX_COVERAGE_RETRIES = 1
@@ -47,8 +48,7 @@ def _progress_writer():
 
 def _load_known_systems() -> set[str]:
     """ollama_llm.py/openai_llm.py와 동일한 소스(data/monitoring.json)에서
-    시스템 목록을 읽는다 — plan_node가 MCP Prompt에 넘길 system_name을
-    쿼리에서 멤버십 매칭으로 뽑아낼 때 쓴다."""
+    시스템 목록을 읽는다. 후속 질문 해석과 요청 대상 검사에 같은 목록을 쓴다."""
     path = Path(__file__).resolve().parent.parent / "data" / "monitoring.json"
     try:
         return set(json.loads(path.read_text()).keys())
@@ -59,18 +59,10 @@ def _load_known_systems() -> set[str]:
 KNOWN_SYSTEMS = _load_known_systems()
 
 
-def _extract_system_name(query: str) -> str:
-    """정규식 대신 실제 KNOWN_SYSTEMS 멤버십 매칭 — MCP Prompt(incident_analysis_
-    prompt)의 system_name은 "시스템: X" 한 줄짜리 컨텍스트라 항상 정해진 이름
-    중 하나로만 고정한다(여러 개 언급돼도 join하지 않음 — 실제 조사 대상 목록은
-    이후 plan()의 tasks가 별도로 결정). 쿼리에서 가장 먼저 등장하는 시스템을
-    고르고, 하나도 안 걸리면 가장 흔한 사례인 auth-service로 폴백."""
-    matches = [(query.index(s), s) for s in KNOWN_SYSTEMS if s in query]
-    return min(matches)[1] if matches else "auth-service"
-
-
 class AgentState(TypedDict, total=False):
     query: str
+    effective_query: str
+    context_resolution: dict
     thread_id: str
     request_id: str
     requested_targets: list[str]
@@ -114,10 +106,27 @@ def _cost(state: AgentState, usage: dict) -> float:
     return round(state.get("cost_usd", 0.0) + usage["usd"], 6)
 
 
+def _request_query(state):
+    return state.get('effective_query') or state['query']
+
+
+@traceable(name='resolve_context_node')
+async def resolve_context_node(state: AgentState,deps: SupervisorDeps) -> dict:
+    decision=resolve_followup(state['query'],state.get('history',[]),KNOWN_SYSTEMS)
+    event={'type':'ContextResolved','status':decision['status'],'targets':decision['targets']}
+    return {'effective_query':decision['effective_query'],'context_resolution':decision,
+            'events':state.get('events',[])+[event]}
+
+
+async def clarify_context_node(state: AgentState,deps: SupervisorDeps) -> dict:
+    return {'final':state['context_resolution']['clarification'],'response_status':'clarification_required',
+            'events':state['events']+[{'type':'ClarificationRequired','reason':'ambiguous_service_reference'}]}
+
+
 @traceable(name="route_node")
 async def route_node(state: AgentState, deps: SupervisorDeps) -> dict:
     """Wave 5 — 모든 쿼리가 무거운 파이프라인을 탈 필요는 없다."""
-    result, usage = await asyncio.to_thread(deps.fast_llm.route, state["query"])
+    result, usage = await asyncio.to_thread(deps.fast_llm.route, _request_query(state))
     event = {"type": "RouteDecided", "route": result["route"],
              'tokens':usage.get('tokens'),'model':usage.get('model')}
     return {"route": result["route"], "needs_analysis": result["needs_analysis"],
@@ -149,14 +158,15 @@ async def plan_node(state: AgentState, deps: SupervisorDeps) -> dict:
 
     resource와 마찬가지로 이름을 어느 서버가 들고 있는지 미리 가정하지 않고,
     find_prompt()로 연결된 서버들을 먼저 조회해 찾은 뒤에만 get_prompt를 보낸다."""
-    expected = requested_targets(state['query'], KNOWN_SYSTEMS)
+    query = _request_query(state)
+    expected = requested_targets(query, KNOWN_SYSTEMS)
     prompt_server = await deps.mcp.find_prompt("incident_analysis_prompt")
     procedure = await deps.mcp.get_prompt(
         "incident_analysis_prompt",
-        {"system_name": ', '.join(expected), "symptom": state["query"]},
+        {"system_name": ', '.join(expected), "symptom": query},
         server=prompt_server,
     )
-    result, usage = await asyncio.to_thread(deps.fast_llm.plan, state["query"], procedure)
+    result, usage = await asyncio.to_thread(deps.fast_llm.plan, query, procedure)
     targets = [t["target"] for t in result["tasks"]
                if t["agent"] == "research" and t.get("target")]
     event = {"type": "PlanCreated", "task_count": len(result["tasks"]),
@@ -170,7 +180,7 @@ async def plan_node(state: AgentState, deps: SupervisorDeps) -> dict:
 async def gate_node(state: AgentState, deps: SupervisorDeps) -> dict:
     """Wave 6 — 권위 게이트. needs_analysis=False인데 섞여 들어온 analysis task를
     프롬프트가 아니라 코드로 강제 제거한다."""
-    expected = state.get('requested_targets') or requested_targets(state['query'], KNOWN_SYSTEMS)
+    expected = state.get('requested_targets') or requested_targets(_request_query(state), KNOWN_SYSTEMS)
     tasks, scope_report = enforce_scope(state['tasks'], expected)
     if not state.get("needs_analysis", False):
         kept = [t for t in tasks if t["agent"] != "analysis"]
@@ -257,37 +267,10 @@ async def research_node(state: AgentState, deps: SupervisorDeps) -> dict:
             "parallel_elapsed": elapsed, "events": events}
 
 
-# 수집된 모니터링 결과(상태·알림 문구)를 보고 어떤 runbook이 맞는지 고른다. LLM에게
-# 다시 묻는 대신 코드 레벨 규칙으로 판단한다 — gate(Wave 6)·replan(Wave 7)과 같은 설계
-# 원칙: 모델의 판단을 그대로 믿지 않고, 실측 데이터로 검증 가능한 결정은 코드가 내린다.
-_INCIDENT_TYPE_RULES = [
-    ("latency", "high-latency"),
-    ("pool", "high-latency"),
-    ("cpu", "cpu-spike"),
-    ("memory", "memory-leak"),
-    ("heap", "memory-leak"),
-    ("timeout", "network-timeout"),
-    ("network", "network-timeout"),
-    ("disk", "disk-full"),
-    ("down", "db-down"),
-]
-
-
-def _classify_incident_type(collected: list[dict]) -> str:
-    text = " ".join(
-        f"{c['data'].get('status', '')} " + " ".join(c["data"].get("alerts", []))
-        for c in collected if c.get("source") == "monitoring"
-    ).lower()
-    for keyword, incident_type in _INCIDENT_TYPE_RULES:
-        if keyword in text:
-            return incident_type
-    return "db-down"   # 매칭되는 증상이 없으면 가장 일반적인 장애 대응 절차로 폴백
-
-
 @traceable(name="replan_check_node")
 async def replan_check_node(state: AgentState, deps: SupervisorDeps) -> dict:
     """Check successful monitoring coverage before the existing runbook check."""
-    expected = state.get('requested_targets') or requested_targets(state['query'],KNOWN_SYSTEMS)
+    expected = state.get('requested_targets') or requested_targets(_request_query(state),KNOWN_SYSTEMS)
     verified, missing = coverage(state.get('collected',[]), expected)
     info = {'verified_targets':verified, 'unverified_targets':missing}
     events = state['events'] + [{'type':'CoverageChecked', **info}]
@@ -320,7 +303,7 @@ async def retrieve_runbooks_node(state: AgentState,deps: SupervisorDeps) -> dict
         for attempt in range(2):
             base={'call_id':f"{state['request_id']}:search:{attempt}", 'name':'search_runbooks', 'target':'runbooks'}
             writer({'type':'ToolCallStart', **base})
-            result=await asyncio.to_thread(retriever.search,state['query'],monitoring,retry=bool(attempt))
+            result=await asyncio.to_thread(retriever.search,_request_query(state),monitoring,retry=bool(attempt))
             writer({'type':'ToolCallError' if result['status']=='search_error' else 'ToolCallEnd',
                     **base,'status':result['status']})
             search_count+=1
@@ -332,7 +315,7 @@ async def retrieve_runbooks_node(state: AgentState,deps: SupervisorDeps) -> dict
         if result['hits']:
             try:
                 resource_server,template=await deps.mcp.find_resource_template('get_incident_runbook')
-                for hit in result['hits'][:2]:
+                for hit in result['hits']:
                     key=hit['runbook_id']
                     base={'call_id':f"{state['request_id']}:runbook:{key}", 'name':'read_runbook', 'target':key}
                     writer({'type':'ToolCallStart', **base})
@@ -405,7 +388,7 @@ async def write_node(state: AgentState, deps: SupervisorDeps) -> dict:
     notes=[]
     for feedback in [state.get('validation_feedback'), state.get('review_feedback')]:
         if feedback:notes.extend(json.loads(feedback))
-    report,usage=await deps.quality_llm.write_grounded(state['query'],state['grounded_evidence'],
+    report,usage=await deps.quality_llm.write_grounded(_request_query(state),state['grounded_evidence'],
         state['action_catalog'],attempt,json.dumps(notes,ensure_ascii=False) if notes else None)
     return {'structured_draft':report,'draft_mode':'grounded','draft':'',"last_prompt":usage.get('prompt'),
             "cost_usd": _cost(state, usage),
@@ -452,7 +435,7 @@ async def review_node(state: AgentState, deps: SupervisorDeps) -> dict:
     _progress_writer()({'type':'ReviewerStarted','attempt':attempt,'reason':reason})
     usage = {}
     try:
-        raw, usage = await reviewer.review(state['query'], state['grounded_evidence'],
+        raw, usage = await reviewer.review(_request_query(state), state['grounded_evidence'],
             state['action_catalog'], state['draft'], state['requested_targets'])
         result = parse_review(raw, state['requested_targets'], state['action_catalog'], state['draft'])
     except Exception as exc:
@@ -518,6 +501,8 @@ def _after_review(state: AgentState) -> str:
 def build_graph(deps: SupervisorDeps):
     g = StateGraph(AgentState)
     node = lambda fn: partial(fn, deps=deps)   # Wave 13 — 명시적 의존성 주입
+    g.add_node('resolve_context',node(resolve_context_node))
+    g.add_node('clarify_context',node(clarify_context_node))
     g.add_node("route", node(route_node))
     g.add_node("chat_answer", node(chat_answer_node))
     g.add_node("plan", node(plan_node))
@@ -533,7 +518,11 @@ def build_graph(deps: SupervisorDeps):
     g.add_node("finalize", node(finalize_node))
     g.add_node('validation_failed',node(validation_failed_node))
 
-    g.set_entry_point("route")
+    g.set_entry_point('resolve_context')
+    g.add_conditional_edges('resolve_context',
+        lambda state:'clarify_context' if state['context_resolution']['needs_clarification'] else 'route',
+        {'clarify_context':'clarify_context','route':'route'})
+    g.add_edge('clarify_context',END)
     g.add_conditional_edges("route", _after_route,
                             {"chat_answer": "chat_answer", "plan": "plan"})
     g.add_edge("chat_answer", END)

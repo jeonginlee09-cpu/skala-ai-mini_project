@@ -21,6 +21,7 @@ class ControlledEmbedding:
                 vector[next(i for i,t in enumerate(titles) if t in text)]=1.0
             elif 'synthetic-cpu' in text:vector[0]=1.0
             elif 'synthetic-memory' in text:vector[4]=1.0
+            elif 'synthetic-disk' in text:vector[2]=1.0
             else:vector[6]=1.0
             vectors.append(vector)
         return vectors,{'tokens':0,'requests':1,'mode':'controlled_test'}
@@ -66,9 +67,33 @@ class RetrievalTests(unittest.TestCase):
         self.assertNotEqual(old,self.retriever.catalog['cpu-spike']['content_hash'])
         self.assertEqual(len(self.embed.calls[-1]),1)
 
-    def test_cap_is_enforced_even_when_caller_requests_more(self):
-        result=self.retriever.search('synthetic-cpu',[],max_results=100)
-        self.assertLessEqual(len(result['hits']),2)
+    def test_three_independent_service_symptoms_are_not_truncated_to_two(self):
+        result=self.retriever.search('synthetic-cpu',[
+            {'system_name':'payments-service','alerts':['synthetic-cpu']},
+            {'system_name':'cache-service','alerts':['synthetic-memory']},
+            {'system_name':'log-service','alerts':['synthetic-disk']}])
+        self.assertEqual({r['runbook_id'] for r in result['hits']},
+                         {'cpu-spike','memory-leak','disk-full'})
+        self.assertEqual(result['uncovered_targets'],[])
+
+    def test_explicit_caller_limit_still_applies_without_a_hidden_two_document_cap(self):
+        monitoring=[{'system_name':'payments-service','alerts':['synthetic-cpu']},
+                    {'system_name':'cache-service','alerts':['synthetic-memory']},
+                    {'system_name':'log-service','alerts':['synthetic-disk']}]
+        self.assertEqual(len(self.retriever.search('synthetic-cpu',monitoring,max_results=1)['hits']),1)
+        self.assertEqual(len(self.retriever.search('synthetic-cpu',monitoring,max_results=3)['hits']),3)
+
+    def test_relevance_filter_can_inspect_the_entire_small_catalog(self):
+        offered=[]
+        def choose(queries,candidates):
+            offered.extend(candidates)
+            return [{'query_id':0,'runbook_id':key,'query_quote':'synthetic-cpu',
+                     'document_quote':self.retriever.catalog[key]['text'].splitlines()[0]}
+                    for key in ['cpu-spike','memory-leak','disk-full']]
+        self.retriever.reranker=choose
+        result=self.retriever.search('synthetic-cpu',[])
+        self.assertEqual(len(offered),6)
+        self.assertEqual(len(result['hits']),3)
 
     def test_relevance_filter_can_reject_close_but_inapplicable_candidates(self):
         self.retriever.reranker=lambda queries,candidates:[]

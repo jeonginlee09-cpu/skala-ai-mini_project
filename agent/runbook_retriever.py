@@ -72,7 +72,7 @@ class RunbookRetriever:
             (self.index_path/'manifest.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2))
             return {'documents':len(self.catalog),'updated_documents':len(changed),**self.stats}
 
-    def search(self,question,monitoring_results,max_results=2,retry=False):
+    def search(self,question,monitoring_results,max_results=None,retry=False):
         started=time.perf_counter()
         with self.lock:
             before=dict(self.stats)
@@ -103,9 +103,10 @@ class RunbookRetriever:
                         (primary if target or len(queries)==1 else secondary).append(accepted[0])
                         secondary.extend(r for r in accepted[1:] if r['distance']-accepted[0]['distance']<=self.secondary_margin)
                 if self.reranker is not None:
-                    offered=[{**r,'text':self.catalog[r['runbook_id']]['text']}
-                        for i in range(len(queries)) for r in [c for c in candidates if c['query_id']==i][:3]]
-                    selected=self.reranker(queries,offered);primary=[];secondary=[];counts={}
+                    # Six short runbooks: inspect the whole catalog, then retain only
+                    # applicable quoted matches. No global two-document truncation.
+                    offered=[{**r,'text':self.catalog[r['runbook_id']]['text']} for r in candidates]
+                    selected=self.reranker(queries,offered);primary=[];secondary=[];seen=set()
                     normalize=lambda value:' '.join(value.split())
                     for match in selected:
                         i=match['query_id'];key=match['runbook_id']
@@ -114,8 +115,8 @@ class RunbookRetriever:
                         qquote=normalize(match['query_quote']);dquote=normalize(match['document_quote'])
                         if len(qquote)<2 or len(dquote)<4 or qquote not in normalize(queries[i][1]) or dquote not in normalize(candidate['text']):
                             raise ValueError('relevance_quote_mismatch')
-                        counts[i]=counts.get(i,0)+1
-                        if counts[i]>2:raise ValueError('relevance_result_cap')
+                        if (i,key) in seen:continue
+                        seen.add((i,key))
                         row={k:v for k,v in candidate.items() if k not in ['text','query','query_id']}
                         row['query_quote']=match['query_quote'];row['document_quote']=match['document_quote']
                         (primary if queries[i][0] or len(queries)==1 else secondary).append(row)
@@ -124,7 +125,7 @@ class RunbookRetriever:
                     key=row['runbook_id']
                     if key in hits:
                         hits[key]['targets']=sorted(set(hits[key]['targets']+row['targets']))
-                    elif len(hits)<min(max(0,max_results),2):hits[key]=dict(row)
+                    elif max_results is None or len(hits)<max(0,max_results):hits[key]=dict(row)
                 selected=list(hits.values())
                 covered={t for row in selected for t in row['targets']}
                 return {'status':'ok' if selected else 'not_found','hits':selected,'candidates':candidates,

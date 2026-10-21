@@ -1,0 +1,12 @@
+[
+  {"id":"F01","query":"payments-service CPU 상태를 확인해줘","thread_id":"follow-single","expected_targets":["payments-service"]},
+  {"id":"F02","query":"그 서비스의 메모리도 확인해줘","thread_id":"follow-single","expected_targets":["payments-service"],"expected_context":"resolved"},
+  {"id":"F03","query":"cache-service 메모리 상태를 확인해줘","thread_id":"follow-single","expected_targets":["cache-service"],"expected_context":"explicit"},
+  {"id":"F04","query":"payments-service와 cache-service 상태를 비교해줘","thread_id":"follow-multi","expected_targets":["payments-service","cache-service"]},
+  {"id":"F05","query":"그 서비스 상태도 확인해줘","thread_id":"follow-multi","expected_targets":[],"expected_context":"ambiguous"},
+  {"id":"F06","query":"그 두 서비스의 메모리도 비교해줘","thread_id":"follow-multi","expected_targets":["payments-service","cache-service"],"expected_context":"resolved"},
+  {"id":"F07","query":"그 서비스 상태도 확인해줘","thread_id":"new-isolated","expected_targets":[],"expected_context":"ambiguous"},
+  {"id":"F08","query":"payments-service CPU 급증, cache-service 메모리 증가, log-service 디스크 부족을 각각 확인해줘","thread_id":"three-symptoms","expected_targets":["payments-service","cache-service","log-service"],"expected_runbooks":["cpu-spike","memory-leak","disk-full"]},
+  {"id":"F09","query":"제 이름은 민수입니다","thread_id":"follow-single","expected_targets":[],"expected_context":"unchanged"},
+  {"id":"F10","query":"제 이름이 뭐였죠?","thread_id":"follow-single","expected_targets":[],"expected_context":"unchanged","expected_name":"민수"}
+]

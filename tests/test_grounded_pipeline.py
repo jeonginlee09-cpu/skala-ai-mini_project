@@ -60,6 +60,19 @@ class GroundedPipelineTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn('조건부 권고',result['final']);self.assertIn('미확인',result['final'])
         self.assertEqual(result['response_status'],'success')
 
+    async def test_three_relevant_runbooks_are_all_read_from_mcp(self):
+        deps=self.deps()
+        state=initial_state('payments-service, cache-service, log-service 모두 장애 상태를 확인해줘','test','three-books',[])
+        def search(question,monitoring,**kwargs):
+            books=dict(zip(['payments-service','cache-service','log-service'],['cpu-spike','memory-leak','disk-full']))
+            return {'status':'ok','hits':[{k:v for k,v in deps.retriever.catalog[books[r['system_name']]].items() if k!='text'}|
+                {'targets':[r['system_name']]} for r in monitoring],'usage':{},'uncovered_targets':[]}
+        deps.retriever.search=search
+        result=await module.build_graph(deps).ainvoke(state)
+        self.assertEqual({r['runbook_id'] for r in result['runbook_hits']},{'cpu-spike','memory-leak','disk-full'})
+        self.assertEqual({a['target'] for a in result['action_catalog']},{'payments-service','cache-service','log-service'})
+        self.assertEqual(result['runbook_search']['uncovered_targets'],[])
+
     async def test_bad_draft_is_rewritten_without_exposure(self):
         deps=self.deps(bad_until=1);events=[];result=None
         async for mode,payload in module.build_graph(deps).astream(self.state(),stream_mode=['custom','updates']):
