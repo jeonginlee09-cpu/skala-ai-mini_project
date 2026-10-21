@@ -40,7 +40,7 @@ def main():
     assert re.search(r'Ran 90 tests', python_log) and python_log.rstrip().endswith('OK')
     assert re.search(r'(?m)^[#ℹ] pass 5$', ui_log) and re.search(r'(?m)^[#ℹ] fail 0$', ui_log)
     checked_docs = ['README.md', 'doc/final_code_guide.md', 'doc/final_comparison.md',
-                    'doc/final_review.md', 'doc/presentation_script.md']
+                    'doc/final_review.md', 'doc/presentation_script.md', 'doc/original_final_feature_audit.md']
     broken = []
     for name in checked_docs:
         document = ROOT / name
@@ -53,7 +53,7 @@ def main():
     for name in ['doc/final_code_guide.html', 'evidence/final_alignment_verified_20261021/report.html']:
         parser = HTMLParser(); parser.feed((ROOT / name).read_text()); parser.close()
     deck = ROOT / 'output/AI_Agent_개선_최종발표.pptx'
-    receipt = json.loads((OUT / 'slides-build/validation-v2.json').read_text())
+    receipt = json.loads((ROOT / 'evidence/original_final_docs_20261021/validation.json').read_text())
     assert hashlib.sha256(deck.read_bytes()).hexdigest() == receipt['finalSha256']
     assert receipt['packageIntegrity']['status'] == 'pass'
     assert receipt['presentationLayout']['finding_count'] == 0
@@ -62,6 +62,8 @@ def main():
         slide_names = [name for name in archive.namelist() if re.fullmatch(r'ppt/slides/slide\d+\.xml', name)]
         note_names = [name for name in archive.namelist() if re.fullmatch(r'ppt/notesSlides/notesSlide\d+\.xml', name)]
         assert len(slide_names) == len(note_names) == 9
+        visible_text = '\n'.join(archive.read(name).decode() for name in slide_names + note_names)
+        assert not any(word in visible_text for word in ['직전', '중간 버전', '최대 두 문서', '두 개 제한'])
         table = archive.read('ppt/slides/slide7.xml').decode()
         for name in ['original', 'latest']:
             row = summary['results'][name]
@@ -77,6 +79,20 @@ def main():
     assert not leaked, 'Credential detected in submission source'
     assert not any(name == '.env' or name.startswith(('evidence/', '.runbook_index/', '.venv-rag/'))
                    or name.startswith('session.db') for name in names)
+    audit = json.loads((ROOT / 'doc/original_final_feature_audit.json').read_text())
+    assert audit['comparison_scope'] == ['기존 과제', '최종 개선본'] and len(audit['features']) == 19
+    assert audit['final_product_commit'] == manifest['latest_commit']
+    for feature in audit['features']:
+        for key in ['original_evidence', 'final_evidence']:
+            for evidence in feature[key]:
+                raw = (subprocess.check_output(['git', 'show', audit['original_commit'] + ':' + evidence['path']], cwd=ROOT)
+                       if key == 'original_evidence' else (ROOT / evidence['path']).read_bytes())
+                assert hashlib.sha256(raw).hexdigest() == evidence['sha256']
+                assert evidence['needle'] in raw.decode().splitlines()[evidence['line']-1]
+    for name in audit['unchanged_files']:
+        assert (ROOT / name).read_bytes() == subprocess.check_output(['git', 'show', audit['original_commit']+':'+name], cwd=ROOT)
+    for name in checked_docs:
+        assert not any(word in (ROOT / name).read_text() for word in ['직전', '중간 버전', '최대 두 문서', '두 개 제한'])
     payload = {'product_commit': manifest['latest_commit'], 'measured_runtime_files_unchanged': len(product_files),
         'python_tests_passed': 90, 'ui_tests_passed': 5, 'api_comparison_requests': 66,
         'feature_checks_passed': 10, 'warmup_requests_excluded': 8, 'langsmith_runs_verified': 84,
@@ -85,7 +101,9 @@ def main():
         'native_powerpoint_execution_verified': False, 'html_visual_reviewed': False,
         'new_streaming_specific_tests': False, 'human_semantic_accuracy': 'not_measured',
         'actual_invoice': 'not_measured', 'presentation_delivered': False,
-        'broken_submission_links': broken, 'credential_scan': 'no configured secret found'}
+        'broken_submission_links': broken, 'credential_scan': 'no configured secret found',
+        'comparison_scope': audit['comparison_scope'], 'source_features_audited': 19,
+        'runtime_changed_in_document_revision': False, 'measurement_rerun_in_document_revision': False}
     (OUT / 'verification.json').write_text(json.dumps(payload, ensure_ascii=False, indent=2))
     (ROOT / 'doc/final_verification.json').write_text(json.dumps(payload, ensure_ascii=False, indent=2))
     print(json.dumps(payload, ensure_ascii=False, indent=2))

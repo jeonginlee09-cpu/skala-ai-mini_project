@@ -10,7 +10,7 @@
   "pptx_slides": 9,
   "pptx_native_tables": 1,
   "pptx_notes": 9,
-  "pptx_sha256": "aa711e62e67918b075c76a2676cf6cb53473b2056fa6fd6ca15f6dfa068341ac",
+  "pptx_sha256": "f3c7935c4e52d4990db7023bfd6453e60db185b37051ef1e2ba816e50266f46e",
   "all_slides_visually_reviewed": true,
   "native_powerpoint_execution_verified": false,
   "html_visual_reviewed": false,
@@ -19,5 +19,12 @@
   "actual_invoice": "not_measured",
   "presentation_delivered": false,
   "broken_submission_links": [],
-  "credential_scan": "no configured secret found"
+  "credential_scan": "no configured secret found",
+  "comparison_scope": [
+    "기존 과제",
+    "최종 개선본"
+  ],
+  "source_features_audited": 19,
+  "runtime_changed_in_document_revision": false,
+  "measurement_rerun_in_document_revision": false
 }
