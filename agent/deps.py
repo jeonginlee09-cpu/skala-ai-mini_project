@@ -16,3 +16,4 @@ class SupervisorDeps:
     session_store: Any   # Wave 12 — SQLite 세션 저장소
     version: str         # Wave 14 — SUPERVISOR_VERSION (v1/v2)
     retriever: Any = None  # Prepared once in lifespan; controlled substitute in tests.
+    reviewer: Any = None   # Optional read-only semantic Reviewer; distinct from code validation.

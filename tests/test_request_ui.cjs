@@ -24,3 +24,8 @@ test('failed validation is terminal and cannot be overwritten by success', () =>
   assert.equal(failed.text,'검증 실패 안내');assert.equal(failed.completed,true);
   assert.equal(ui.reduceReply(failed,{type:'FinalAnswer',reply:'우회 답변'}).text,'검증 실패 안내');
 });
+test('semantic review failure is terminal and cannot expose a success answer', () => {
+  const failed=ui.reduceReply(ui.newReply(),{type:'ReviewerFailed',reply:'내용 검토 실패 안내'});
+  assert.equal(failed.completed,true);
+  assert.equal(ui.reduceReply(failed,{type:'FinalAnswer',reply:'미검토 답변'}).text,'내용 검토 실패 안내');
+});

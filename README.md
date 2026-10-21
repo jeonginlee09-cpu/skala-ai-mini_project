@@ -2,6 +2,12 @@
 
 현재 루트 폴더가 런북 RAG·근거 및 조건 검수를 적용한 개선본입니다. 이전 과제자료와 기존 Git 정보는 `기존과제자료_백업_20261020/`에 모았으며 Git 업로드 대상에서 제외합니다. 기존 GitHub 연결 주소와 개선본의 커밋 이력을 유지했습니다. 1~3단계 기준 커밋은 `4c5bf90`입니다. 사람 승인은 아직 구현하지 않았으며 실제 재시작·확장·롤백 도구도 없습니다.
 
+## 현재 버전: 선택적 내용 검토 Reviewer
+
+복수 서비스·복수 런북·비교 분석 요청은 코드 검수 후 별도 프롬프트의 Reviewer가 질문 적합성과 누락을 검토합니다. 첫 반려는 Writer로 돌아가고 수정 초안도 코드 검수를 다시 받습니다. 재반려·검토 오류는 `review_failed`로 종료합니다. Reviewer 2회·Writer 3회 상한이며, 단순 요청은 검토 호출을 생략합니다. OpenAI에 적용했고 fake/Ollama는 비활성으로 표시합니다. [설계·설정·한계](doc/conditional_reviewer.md).
+
+아래 99건 비교 수치는 Reviewer 추가 전 기록입니다. 새 버전의 성능 수치로 혼용하지 않습니다.
+
 ## 10월 21일 messages·updates 스트리밍 수정
 
 일반 대화는 OpenAI의 실제 텍스트 조각을 `messages`로 받고, 노드 결과는 `updates`로 구분합니다. 코드가 직접 호출하는 MCP·검색 작업의 시작·완료·실패는 `custom`으로 즉시 알립니다. 추가 SDK나 추가 모델 호출 없이 기존 langchain-core/httpx로 연결했으며, 장애 보고서는 검수 후 공개합니다. [변경 설명](doc/streaming_revision.md).
@@ -64,7 +70,12 @@ flowchart TD
     G --> H[MCP 원문 읽기·해시 확인]
     H --> I[근거·가설·권고 구조화 초안]
     I --> J[참조 ID·대상·수치·조건 검수]
-    J -->|통과| K[코드가 최종 문장 렌더링]
+    J -->|통과| M{복합 질문·Reviewer 활성?}
+    M -->|아니오| K[검수된 최종 답변 공개]
+    M -->|예| N[Reviewer: 내용 적합성 검토]
+    N -->|승인| K
+    N -->|첫 반려·상한 내| I
+    N -->|재반려·오류| O[review_failed]
     J -->|최대 2회 재작성| I
     J -->|계속 실패| L[validation_failed]
     P --> K
@@ -98,10 +109,11 @@ POST `/chat` 입력은 기존 message/thread_id/request_id를 유지합니다. �
 | success | 보고서 처리 성공입니다. 원인 확정·복구 성공이라는 뜻은 아닙니다. |
 | partial | 일부 모니터링 지표를 확보하지 못해 부분 결과만 제공합니다. |
 | validation_failed | 초안의 참조·조건 검수가 끝까지 실패해 권고를 확정하지 않습니다. |
+| review_failed | 내용 검토가 재반려되거나 오류가 발생해 권고를 확정하지 않습니다. |
 
 metadata에는 validation_result, runbook_ids, runbook_search_status, search_count, 근거 목록, 검색 사용량이 있습니다. 검수 실패는 HTTP 오류와 구분한 처리 상태이며 실패 초안을 성공 답변 이력으로 저장하지 않습니다.
 
-GET `/chat/stream`은 요청 ID가 붙은 SSE를 유지합니다. 검색/원문/검수 진행 이벤트를 추가했습니다. 검수 실패는 `ValidationFailed`로 알리고 `FinalAnswer`/`Finalize` 성공 이벤트를 내보내지 않습니다. `[DONE]`은 스트림 종료를 뜻하며 성공 판정이 아닙니다.
+GET `/chat/stream`은 요청 ID가 붙은 SSE를 유지합니다. 검색/원문/검수 진행 이벤트를 추가했습니다. 코드 검수 실패는 `ValidationFailed`, 내용 검토 실패는 `ReviewerFailed`로 알리고 `FinalAnswer`/`Finalize` 성공 이벤트를 내보내지 않습니다. `[DONE]`은 스트림 종료를 뜻하며 성공 판정이 아닙니다.
 
 ## 검사와 자료
 

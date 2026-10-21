@@ -35,6 +35,7 @@ from agent.supervisor_v1 import run_v1
 
 CREATION_COUNT = 0   # Wave 1 — 프로세스 내 Agent 번들 생성 횟수 (항상 1이어야 정상)
 logger = logging.getLogger(__name__)
+FAILED_STATUSES = {'validation_failed', 'review_failed'}
 
 
 async def _build_retriever(backend):
@@ -86,6 +87,15 @@ def _build_llms():
     return backend, fast, quality
 
 
+def _build_reviewer(backend):
+    mode = os.environ.get('REVIEWER_MODE', 'conditional')
+    if mode not in {'conditional','off'}:raise ValueError('REVIEWER_MODE must be conditional or off')
+    if mode == 'off' or backend != 'openai':return None
+    from agent.openai_llm import OpenAIReviewer
+    return OpenAIReviewer(os.environ.get('OPENAI_REVIEWER_MODEL',
+        os.environ.get('OPENAI_QUALITY_MODEL','gpt-4o')), usd_per_1k_tokens=.005)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global CREATION_COUNT
@@ -103,6 +113,7 @@ async def lifespan(app: FastAPI):
             str(Path(__file__).resolve().parent/'session.db')))),
         version=os.environ.get("SUPERVISOR_VERSION", "v2"),
         retriever=retriever,
+        reviewer=_build_reviewer(backend),
     )
     app.state.deps = deps
     app.state.graph = build_graph(deps) if deps.version == "v2" else None
@@ -131,7 +142,9 @@ async def health():
             "fast_llm": app.state.deps.fast_llm.name,
             "quality_llm": app.state.deps.quality_llm.name,
             'runbook_search_mode':'chroma_with_quote_checked_rerank' if app.state.deps.retriever else 'disabled_offline',
-            'runbook_documents':len(app.state.deps.retriever.catalog) if app.state.deps.retriever else 0}
+            'runbook_documents':len(app.state.deps.retriever.catalog) if app.state.deps.retriever else 0,
+            'reviewer_mode':'conditional' if getattr(app.state.deps,'reviewer',None) else 'off',
+            'reviewer_model':getattr(getattr(app.state.deps,'reviewer',None),'name',None)}
 
 
 @app.get("/version")
@@ -147,6 +160,9 @@ def _metadata(result: dict, run_id: str | None) -> dict:
         "unverified_targets": result.get("unverified_targets",[]),
         "coverage_retry_rounds": result.get("coverage_retry_rounds",0),
         'validation_result':result.get('validation_result'),
+        'review_status':result.get('review_status'),
+        'review_attempts':result.get('review_attempts',0),
+        'review_result':result.get('review_result'),
         'search_count':result.get('search_count',0),
         'runbook_search_status':result.get('runbook_search',{}).get('status'),
         'runbook_embedding_usage':result.get('runbook_search',{}).get('usage',{}),
@@ -181,7 +197,7 @@ async def _handle_chat(message: str, thread_id: str, request_id: str | None = No
             result = await app.state.graph.ainvoke(state, config=config)
         else:
             result = await run_v1(deps, message, thread_id, history)
-        if result.get('response_status')!='validation_failed':
+        if result.get('response_status') not in FAILED_STATUSES:
             deps.session_store.append_turn(thread_id,message,result['final'])
     result['request_id'] = rid
     result['events'] = [tag_event(e, thread_id, rid) for e in result.get('events',[])]
@@ -251,7 +267,7 @@ async def chat_stream(message: str, thread_id: str = "default",
                             if delta.get("last_prompt"):
                                 last_prompt = delta["last_prompt"]
                             if delta.get('response_status'):response_status=delta['response_status']
-                if deps.version!='v2' or response_status!='validation_failed':
+                if deps.version!='v2' or response_status not in FAILED_STATUSES:
                     deps.session_store.append_turn(thread_id,message,final)
                     logger.info("request_completed request_id=%s thread_id=%s", rid, thread_id)
                     yield encode({"type":"FinalAnswer", "reply":final, "prompt":last_prompt})

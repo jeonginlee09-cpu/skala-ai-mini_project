@@ -3,7 +3,8 @@
 route → (chat 직행 | incident 파이프라인)
 incident: plan(MCP Prompt 절차 반영) → gate(권위 게이트) → research(가드+병렬+재시도)
           → replan_check(부족 시 gap task 후 재조사) → analysis(needs_analysis=True일 때만
-          실제 실행) → write → validate(반려 시 재작성) → finalize
+          실제 실행) → write → validate(코드 검사) → review(복합 질문 내용 검토) → finalize
+검수/검토 반려는 상한 내 write로 환류하며, 내용 검토 실패는 성공 답변으로 공개하지 않는다.
 
 모든 노드는 SupervisorDeps를 functools.partial로 주입받는 순수 함수다(Wave 13).
 각 노드는 @traceable로 LangSmith에 계층 트리로 기록된다.
@@ -26,10 +27,12 @@ from .evidence import build_evidence
 from .grounded_report import render_report
 from .runbook_retriever import digest
 from .validator import prepare_actions,validate_report
+from .semantic_review import review_policy, parse_review, rewrite_feedback
 
 RESEARCH_DELAY_SECONDS = 0.35
 MAX_COVERAGE_RETRIES = 1
 MAX_REPORT_ATTEMPTS = 3  # Initial draft + at most two rewrites; never force-pass.
+MAX_REVIEW_ATTEMPTS = 2  # One semantic revision, and no unlimited approval loop.
 
 
 def _progress_writer():
@@ -101,6 +104,10 @@ class AgentState(TypedDict, total=False):
     runbook_hits: list[dict]
     runbook_search: dict
     search_count: int
+    review_attempts: int
+    review_result: dict
+    review_status: str
+    review_feedback: str | None
 
 
 def _cost(state: AgentState, usage: dict) -> float:
@@ -395,8 +402,11 @@ async def write_node(state: AgentState, deps: SupervisorDeps) -> dict:
         return {'draft':draft,'draft_mode':'monitoring_incomplete','last_prompt':None,
                 'events':state['events']+[{'type':'DraftWritten','attempt':attempt,
                     'length':len(draft),'mode':'coverage_incomplete'}]}
+    notes=[]
+    for feedback in [state.get('validation_feedback'), state.get('review_feedback')]:
+        if feedback:notes.extend(json.loads(feedback))
     report,usage=await deps.quality_llm.write_grounded(state['query'],state['grounded_evidence'],
-        state['action_catalog'],attempt,state.get('validation_feedback'))
+        state['action_catalog'],attempt,json.dumps(notes,ensure_ascii=False) if notes else None)
     return {'structured_draft':report,'draft_mode':'grounded','draft':'',"last_prompt":usage.get('prompt'),
             "cost_usd": _cost(state, usage),
             "events": state["events"] + [{"type": "DraftWritten", "attempt": attempt,
@@ -424,6 +434,50 @@ async def validate_node(state: AgentState, deps: SupervisorDeps) -> dict:
             'draft':draft,'events':state['events']+[event]}
 
 
+@traceable(name='review_node')
+async def review_node(state: AgentState, deps: SupervisorDeps) -> dict:
+    # Numeric/source checks are a prerequisite, never a decision for this Agent.
+    if not state.get('validation_result', {}).get('passed'):
+        return {'review_status':'error','review_result':{'error_type':'code_validation_required'}}
+    required, reason = review_policy(state)
+    reviewer = getattr(deps, 'reviewer', None)
+    if not required or reviewer is None:
+        reason = reason if not required else 'disabled'
+        return {'review_status':'skipped','review_feedback':None,
+                'review_result':{'reason':reason},
+                'events':state['events']+[{'type':'ReviewerSkipped','reason':reason}]}
+    attempt = state.get('review_attempts', 0) + 1
+    if attempt > MAX_REVIEW_ATTEMPTS:
+        return {'review_status':'rejected','review_result':{'reason':'attempt_limit'}}
+    _progress_writer()({'type':'ReviewerStarted','attempt':attempt,'reason':reason})
+    usage = {}
+    try:
+        raw, usage = await reviewer.review(state['query'], state['grounded_evidence'],
+            state['action_catalog'], state['draft'], state['requested_targets'])
+        result = parse_review(raw, state['requested_targets'], state['action_catalog'])
+    except Exception as exc:
+        return {'review_attempts':attempt,'review_status':'error',
+            'review_result':{'error_type':type(exc).__name__},
+            'cost_usd':round(state.get('cost_usd',0)+usage.get('usd',0),6),
+            'events':state['events']+[{'type':'ReviewerError','attempt':attempt,'error_type':type(exc).__name__,
+                'tokens':usage.get('tokens'),'model':usage.get('model')}]}
+    approved = result['approved']
+    return {'review_attempts':attempt, 'review_result':result,
+        'review_status':'approved' if approved else 'rejected',
+        'review_feedback':None if approved else rewrite_feedback(result),
+        'cost_usd':_cost(state,usage),
+        'events':state['events']+[{'type':'ReviewerCompleted','attempt':attempt,'approved':approved,
+            'issue_codes':[i['code'] for i in result['issues']],
+            'tokens':usage.get('tokens'),'model':usage.get('model')}]}
+
+
+async def review_failed_node(state: AgentState,deps: SupervisorDeps) -> dict:
+    reply='내용 검토를 완료하거나 통과하지 못해 대응 권고를 확정하지 않았습니다. 실제 조치는 실행하지 않았습니다.'
+    return {'response_status':'review_failed','failure_reply':reply,'final':'',
+        'events':state['events']+[{'type':'ReviewerFailed','reply':reply,
+            'attempts':state.get('review_attempts',0),'status':state.get('review_status')}]}
+
+
 @traceable(name="finalize_node")
 async def finalize_node(state: AgentState, deps: SupervisorDeps) -> dict:
     return {"final": state["draft"],'response_status':'partial' if state.get('unverified_targets') else 'success',
@@ -448,8 +502,15 @@ def _after_replan_check(state: AgentState) -> str:
 
 
 def _after_validate(state: AgentState) -> str:
-    if state['validation_result']['passed']:return 'finalize'
+    if state['validation_result']['passed']:return 'review'
     return 'write' if state['validation_attempts']<MAX_REPORT_ATTEMPTS else 'validation_failed'
+
+
+def _after_review(state: AgentState) -> str:
+    if state['review_status'] in {'approved','skipped'}:return 'finalize'
+    if (state['review_status']=='rejected' and state['review_attempts']<MAX_REVIEW_ATTEMPTS
+            and state['validation_attempts']<MAX_REPORT_ATTEMPTS):return 'write'
+    return 'review_failed'
 
 
 def build_graph(deps: SupervisorDeps):
@@ -465,6 +526,8 @@ def build_graph(deps: SupervisorDeps):
     g.add_node("analysis", node(analysis_node))
     g.add_node("write", node(write_node))
     g.add_node("validate", node(validate_node))
+    g.add_node('review', node(review_node))
+    g.add_node('review_failed', node(review_failed_node))
     g.add_node("finalize", node(finalize_node))
     g.add_node('validation_failed',node(validation_failed_node))
 
@@ -481,7 +544,10 @@ def build_graph(deps: SupervisorDeps):
     g.add_edge("analysis", "write")
     g.add_edge("write", "validate")
     g.add_conditional_edges("validate", _after_validate,
-                            {"finalize": "finalize", "write": "write",'validation_failed':'validation_failed'})
+                            {"review": "review", "write": "write",'validation_failed':'validation_failed'})
+    g.add_conditional_edges('review', _after_review,
+                            {'finalize':'finalize','write':'write','review_failed':'review_failed'})
+    g.add_edge('review_failed',END)
     g.add_edge('validation_failed',END)
     g.add_edge("finalize", END)
     return g.compile()

@@ -7,7 +7,7 @@
     newReply() { return {text:'', attempt:null, completed:false}; },
     reduceReply(state, event) {
       if (state.completed) return state;
-      if (event.type === 'ValidationFailed') return {...state,text:event.reply,completed:true};
+      if (event.type === 'ValidationFailed' || event.type === 'ReviewerFailed') return {...state,text:event.reply,completed:true};
       if (event.type === 'FinalAnswer') return {...state, text:event.reply, completed:true};
       if (event.type !== 'AnswerToken') return state;
       const attempt = event.attempt ?? 0;

@@ -222,6 +222,21 @@ class OpenAIFastLLM(OpenAILLM):
         return content, usage
 
 
+class OpenAIReviewer(OpenAILLM):
+    """Independent role prompt and strict decision output; no execution tools."""
+
+    @traceable(run_type='llm', name='openai_reviewer.review',
+               process_inputs=lambda inputs: {k: v for k, v in inputs.items() if k != 'self'})
+    async def review(self, query, evidence, actions, draft, targets):
+        from .semantic_review import ReviewDecision, review_context
+        system, user = review_context(query, evidence, actions, draft, targets)
+        content, usage = await asyncio.to_thread(self._chat, system, user,
+                                                schema=ReviewDecision.model_json_schema())
+        try: result = json.loads(content)
+        except (json.JSONDecodeError, TypeError): result = {'invalid_json':True}
+        return result, usage
+
+
 class OpenAIQualityLLM(OpenAILLM):
     """최종 답변 작성 전담 (고품질 모델, 기본 gpt-4o)."""
 
