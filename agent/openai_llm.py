@@ -215,11 +215,11 @@ class OpenAIQualityLLM(OpenAILLM):
     @traceable(run_type='llm',name='openai_quality.write_grounded',
                process_inputs=lambda inputs:{k:v for k,v in inputs.items() if k!='self'})
     async def write_grounded(self,query,evidence,actions,attempt,feedback):
-        from .grounded_report import GroundedReport,report_prompt
-        system,user=report_prompt(query,evidence,actions,feedback)
-        content,usage=await asyncio.to_thread(self._chat,system,user,schema=GroundedReport.model_json_schema())
+        from .report_selection import ReportSelection, selection_context, expand_selection
+        system,user,action_map,hypothesis_map=selection_context(query,evidence,actions,feedback)
+        content,usage=await asyncio.to_thread(self._chat,system,user,schema=ReportSelection.model_json_schema())
         usage['prompt']=f'[SYSTEM]\n{system}\n\n[USER]\n{user}'
-        try:report=json.loads(content)
+        try:report=expand_selection(json.loads(content),evidence,action_map,hypothesis_map)
         except (json.JSONDecodeError,TypeError):report={'invalid_json':True}
         return report,usage
 

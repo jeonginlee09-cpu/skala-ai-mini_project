@@ -67,6 +67,7 @@ class AgentState(TypedDict, total=False):
     history: list[dict]
     route: str
     needs_analysis: bool
+    comparison_requested: bool
     tasks: list[dict]
     gate_removed: int
     collected: list[dict]
@@ -338,16 +339,16 @@ async def analysis_node(state: AgentState, deps: SupervisorDeps) -> dict:
     if not pending:
         return {"events": state["events"] +
                 [{"type": "AnalysisSkipped", "reason": "analysis task 0개"}]}
-    summary, usage = deps.fast_llm.analyze(state.get("collected", []))
+    # The previous standalone model summary was not consumed by write_grounded.
+    # Compare verified current measurements in the renderer; never infer causality.
     new_tasks = [dict(t) for t in tasks]
     for t in new_tasks:
         if t["agent"] == "analysis" and t["status"] == "pending":
             t["status"] = "done"
-    collected = state.get("collected", []) + [{"source": "analysis", "data": summary}]
-    event = {"type": "AnalysisCompleted", "length": len(summary),
-             'tokens':usage.get('tokens'),'model':usage.get('model')}
-    return {"tasks": new_tasks, "collected": collected,
-            "cost_usd": _cost(state, usage), "events": state["events"] + [event]}
+    event = {"type": "AnalysisCompleted", "mode":"deterministic_comparison", 'tokens':0,
+             'scope':'현재 측정값 비교; 공통 원인 미확인'}
+    return {"tasks": new_tasks, 'comparison_requested':True,
+            "events": state["events"] + [event]}
 
 
 @traceable(name="write_node")
@@ -380,7 +381,8 @@ async def validate_node(state: AgentState, deps: SupervisorDeps) -> dict:
             state['action_catalog'],state['verified_targets'])
         draft=render_report(state['structured_draft'],state['grounded_evidence'],state['action_catalog'],
             search_status=state['runbook_search']['status'],
-            uncovered_targets=state['runbook_search'].get('uncovered_targets')) if checked['passed'] else ''
+            uncovered_targets=state['runbook_search'].get('uncovered_targets'),
+            compare_targets=state.get('comparison_requested',False)) if checked['passed'] else ''
     feedback=None if checked['passed'] else json.dumps(checked['errors'],ensure_ascii=False)
     event={'type':'Validation','attempt':attempts,'verdict':'합격' if checked['passed'] else '불합격',
            'errors':checked['errors']}

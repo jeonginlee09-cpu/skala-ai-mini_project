@@ -57,21 +57,39 @@ def default_report(evidence,actions):
             'execution_status':'proposed'} for a in actions]}
 
 
-def render_report(report,evidence,actions,search_status='ok',uncovered_targets=None):
+def render_report(report,evidence,actions,search_status='ok',uncovered_targets=None,compare_targets=False):
     action_map={a['action_id']:a for a in actions}
     lines=['실습 샘플 자료에 근거한 안내입니다. 실제 조치는 실행하지 않았습니다.','1) 확인한 사실']
+    rendered_alerts=set()
     for fact in report['facts']:
         e=evidence[fact['evidence_id']]
+        # Alerts are rendered once below, with their original provenance.
+        if e['field']=='alert':
+            continue
         label={'status':'상태','cpu_percent':'CPU','memory_percent':'메모리'}.get(e['field'],e['field'])
         provenance='현재 조회' if e['origin']=='measurement' else '알림 인용·발생 시각 미확인'
         lines.append(f"- {e['target']} {label}: {e['value']}{e['unit']} ({provenance}) [근거 {e['id']}]")
     # Include original alert text separately, even if the model did not select it.
     for e in evidence.values():
-        if e['field']=='alert':lines.append(f"- {e['target']} 알림 인용: {e['value']} (발생 시각 미확인) [근거 {e['id']}]")
+        if e['field']=='alert' and (e['target'],e['value']) not in rendered_alerts:
+            rendered_alerts.add((e['target'],e['value']))
+            lines.append(f"- {e['target']} 알림 인용: {e['value']} (발생 시각 미확인) [근거 {e['id']}]")
     lines.append('2) 원인 가설·권고')
+    if compare_targets:
+        measured={}
+        for e in evidence.values():
+            if e['origin']=='measurement':measured.setdefault(e['target'],{})[e['field']]=e['value']
+        if len(measured)>1:
+            compared='; '.join(f"{name}: 상태={r['status']}, CPU {r['cpu_percent']}%, 메모리 {r['memory_percent']}%"
+                for name,r in measured.items())
+            lines.append('- 서비스 간 현재값 비교(코드): '+compared)
+        lines.append('- 현재값만으로 공통 원인·증가 추세는 확정할 수 없습니다. 시계열·배포·호출 관계 확인이 필요합니다.')
     if not report['hypotheses']:lines.append('- 현재 자료만으로 실제 원인은 확정하지 않았습니다.')
+    rendered_hypotheses=set()
     for h in report['hypotheses']:
         a=action_map[h['action_id']];text=next(c['text'] for c in a['hypotheses'] if c['id']==h['candidate_id'])
+        if (a['target'],text) in rendered_hypotheses:continue
+        rendered_hypotheses.add((a['target'],text))
         lines.append(f"- {a['target']} 점검 가설: {text}. 런북이 제시하는 가능성이며 원인 확인은 필요합니다.")
     unknowns=[];sources={}
     for r in report['recommendations']:
