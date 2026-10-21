@@ -1,0 +1,47 @@
+{
+  "scope": "보고서용 별도 실제 화면 시연",
+  "class": "3반",
+  "number": "G092",
+  "name": "이정인",
+  "screenshots": [
+    {
+      "file": "../assets/function_flow.jpg",
+      "sha256": "685b1d04233b65f99e525a7110f2063c2bd1b33d84772b997c0583eb78ec4dca",
+      "variant": "최종 개선본",
+      "input": "payments-service CPU 상태를 확인해줘",
+      "source_commit": "69d58eb",
+      "capture_date": "2026-10-21",
+      "capture_method": "CUA actual localhost UI screenshot; no image editing",
+      "port": 18620,
+      "fixed_sample": false,
+      "included_in_66_run_statistics": false
+    },
+    {
+      "file": "../assets/before_comparison.jpg",
+      "sha256": "96c80bb05463ce514ee7b3d7570cb086cfc50579aea2b44668520e958b299ab3",
+      "variant": "기존 과제",
+      "input": "cache-service 메모리 사용률이 계속 올라가고 있어요",
+      "source_commit": "0d8405e",
+      "capture_date": "2026-10-21",
+      "capture_method": "CUA actual localhost UI screenshot; no image editing",
+      "port": 18621,
+      "fixed_sample": true,
+      "included_in_66_run_statistics": false
+    },
+    {
+      "file": "../assets/after_comparison.jpg",
+      "sha256": "eb9a285463b2e50550f651f8bbb7bf6df7b93383c152210cc5eea1a8a7d2ec6d",
+      "variant": "최종 개선본",
+      "input": "cache-service 메모리 사용률이 계속 올라가고 있어요",
+      "source_commit": "69d58eb",
+      "capture_date": "2026-10-21",
+      "capture_method": "CUA actual localhost UI screenshot; no image editing",
+      "port": 18622,
+      "fixed_sample": true,
+      "included_in_66_run_statistics": false
+    }
+  ],
+  "before_after_same_input": true,
+  "before_after_sample_memory_percent": 89.0,
+  "production_infrastructure_actions_executed": false
+}

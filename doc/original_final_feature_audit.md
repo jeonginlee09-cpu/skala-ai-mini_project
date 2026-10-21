@@ -30,42 +30,42 @@
 
 서버·싱글턴을 새로 도입한 것이 아니라 새 의존성을 기존 초기화에 연결했습니다.
 
-- 원본: [server.py:63](../기존과제자료_백업_20261020/server.py#L63)
+- 원본: [server.py:63](https://github.com/jeonginlee09-cpu/skala-ai-mini_project/blob/0d8405e060188e7bd88a4c93a101ba4b40c1beb9/server.py#L63)
 - 최종: [server.py:100](../server.py#L100)
 
 ### A02 MCP 별도 프로세스·서버 탐색
 
 MCP 신규 분리 과제가 아닙니다. agent/mcp_client.py는 원본과 같습니다.
 
-- 원본: [agent/mcp_client.py:44](../기존과제자료_백업_20261020/agent/mcp_client.py#L44)
+- 원본: [agent/mcp_client.py:44](https://github.com/jeonginlee09-cpu/skala-ai-mini_project/blob/0d8405e060188e7bd88a4c93a101ba4b40c1beb9/agent/mcp_client.py#L44)
 - 최종: [agent/mcp_client.py:44](../agent/mcp_client.py#L44)
 
 ### A03 의존성 주입(DI)
 
 DI를 처음 만든 것이 아니라 기존 계약을 확장했습니다.
 
-- 원본: [agent/deps.py:12](../기존과제자료_백업_20261020/agent/deps.py#L12)
+- 원본: [agent/deps.py:12](https://github.com/jeonginlee09-cpu/skala-ai-mini_project/blob/0d8405e060188e7bd88a4c93a101ba4b40c1beb9/agent/deps.py#L12)
 - 최종: [agent/deps.py:18](../agent/deps.py#L18)
 
 ### A04 LangSmith 추적
 
 기존 관측 도구를 활용해 비교 증빙을 확보했습니다.
 
-- 원본: [agent/graph.py:75](../기존과제자료_백업_20261020/agent/graph.py#L75)
+- 원본: [agent/graph.py:75](https://github.com/jeonginlee09-cpu/skala-ai-mini_project/blob/0d8405e060188e7bd88a4c93a101ba4b40c1beb9/agent/graph.py#L75)
 - 최종: [agent/graph.py:429](../agent/graph.py#L429)
 
 ### A05 일반 대화·운영 라우팅
 
 대화 분류 자체가 새 기능은 아닙니다.
 
-- 원본: [agent/graph.py:76](../기존과제자료_백업_20261020/agent/graph.py#L76)
+- 원본: [agent/graph.py:76](https://github.com/jeonginlee09-cpu/skala-ai-mini_project/blob/0d8405e060188e7bd88a4c93a101ba4b40c1beb9/agent/graph.py#L76)
 - 최종: [agent/graph.py:140](../agent/graph.py#L140)
 
 ### A06 복수 서비스 계획·대상 정규화
 
 복수 서비스가 처음 가능해진 것이 아니라 부분 누락까지 코드로 보완합니다.
 
-- 원본: [agent/openai_llm.py:168](../기존과제자료_백업_20261020/agent/openai_llm.py#L168), [agent/openai_llm.py:157](../기존과제자료_백업_20261020/agent/openai_llm.py#L157)
+- 원본: [agent/openai_llm.py:168](https://github.com/jeonginlee09-cpu/skala-ai-mini_project/blob/0d8405e060188e7bd88a4c93a101ba4b40c1beb9/agent/openai_llm.py#L168), [agent/openai_llm.py:157](https://github.com/jeonginlee09-cpu/skala-ai-mini_project/blob/0d8405e060188e7bd88a4c93a101ba4b40c1beb9/agent/openai_llm.py#L157)
 - 최종: [agent/target_scope.py:12](../agent/target_scope.py#L12)
 - 한계: 명시하지 않은 의존 서비스의 자동 발견은 구현하지 않았습니다.
 
@@ -73,14 +73,14 @@ DI를 처음 만든 것이 아니라 기존 계약을 확장했습니다.
 
 병렬 처리·재시도 자체를 신규 기능으로 소개하지 않습니다.
 
-- 원본: [agent/graph.py:172](../기존과제자료_백업_20261020/agent/graph.py#L172), [agent/retry.py:11](../기존과제자료_백업_20261020/agent/retry.py#L11)
+- 원본: [agent/graph.py:172](https://github.com/jeonginlee09-cpu/skala-ai-mini_project/blob/0d8405e060188e7bd88a4c93a101ba4b40c1beb9/agent/graph.py#L172), [agent/retry.py:11](https://github.com/jeonginlee09-cpu/skala-ai-mini_project/blob/0d8405e060188e7bd88a4c93a101ba4b40c1beb9/agent/retry.py#L11)
 - 최종: [agent/graph.py:260](../agent/graph.py#L260), [agent/retry.py:11](../agent/retry.py#L11)
 
 ### A08 재계획·조사 충분성
 
 재계획을 새로 만든 것이 아니라 충분성 기준을 대상·지표까지 확장했습니다.
 
-- 원본: [agent/graph.py:217](../기존과제자료_백업_20261020/agent/graph.py#L217)
+- 원본: [agent/graph.py:217](https://github.com/jeonginlee09-cpu/skala-ai-mini_project/blob/0d8405e060188e7bd88a4c93a101ba4b40c1beb9/agent/graph.py#L217)
 - 최종: [agent/graph.py:283](../agent/graph.py#L283), [agent/target_scope.py:26](../agent/target_scope.py#L26)
 - 한계: 끝내 지표를 못 얻으면 미확인·부분 결과로 처리합니다.
 
@@ -88,14 +88,14 @@ DI를 처음 만든 것이 아니라 기존 계약을 확장했습니다.
 
 근거가 전혀 없던 답변에 런북을 처음 붙인 것이 아닙니다.
 
-- 원본: [agent/graph.py:255](../기존과제자료_백업_20261020/agent/graph.py#L255), [agent/openai_llm.py:212](../기존과제자료_백업_20261020/agent/openai_llm.py#L212)
+- 원본: [agent/graph.py:255](https://github.com/jeonginlee09-cpu/skala-ai-mini_project/blob/0d8405e060188e7bd88a4c93a101ba4b40c1beb9/agent/graph.py#L255), [agent/openai_llm.py:212](https://github.com/jeonginlee09-cpu/skala-ai-mini_project/blob/0d8405e060188e7bd88a4c93a101ba4b40c1beb9/agent/openai_llm.py#L212)
 - 최종: [agent/graph.py:336](../agent/graph.py#L336), [agent/validator.py:26](../agent/validator.py#L26)
 
 ### A10 런북 RAG·Chroma
 
 키워드 유형 선택에서 복합 증상에 맞는 복수 근거 검색으로 변경했습니다.
 
-- 원본: [agent/graph.py:205](../기존과제자료_백업_20261020/agent/graph.py#L205)
+- 원본: [agent/graph.py:205](https://github.com/jeonginlee09-cpu/skala-ai-mini_project/blob/0d8405e060188e7bd88a4c93a101ba4b40c1beb9/agent/graph.py#L205)
 - 최종: [agent/runbook_retriever.py:75](../agent/runbook_retriever.py#L75), [agent/relevance.py:18](../agent/relevance.py#L18)
 - 한계: 현재 여섯 문서 전체가 관련성 후보입니다. 대규모 Vector DB 우위를 입증한 실험은 아닙니다.
 
@@ -103,7 +103,7 @@ DI를 처음 만든 것이 아니라 기존 계약을 확장했습니다.
 
 AI와 코드의 분리를 처음 만든 것이 아니라 생성 책임을 더 좁혔습니다.
 
-- 원본: [agent/graph.py:123](../기존과제자료_백업_20261020/agent/graph.py#L123), [agent/graph.py:263](../기존과제자료_백업_20261020/agent/graph.py#L263)
+- 원본: [agent/graph.py:123](https://github.com/jeonginlee09-cpu/skala-ai-mini_project/blob/0d8405e060188e7bd88a4c93a101ba4b40c1beb9/agent/graph.py#L123), [agent/graph.py:263](https://github.com/jeonginlee09-cpu/skala-ai-mini_project/blob/0d8405e060188e7bd88a4c93a101ba4b40c1beb9/agent/graph.py#L263)
 - 최종: [agent/report_selection.py:9](../agent/report_selection.py#L9), [agent/report_selection.py:64](../agent/report_selection.py#L64)
 - 한계: 이번 검증의 ID 선택 방식은 OpenAI 실행 경로 기준입니다.
 
@@ -111,7 +111,7 @@ AI와 코드의 분리를 처음 만든 것이 아니라 생성 책임을 더 �
 
 기존 형식 검사를 근거·조건 검수로 강화했습니다.
 
-- 원본: [agent/graph.py:279](../기존과제자료_백업_20261020/agent/graph.py#L279)
+- 원본: [agent/graph.py:279](https://github.com/jeonginlee09-cpu/skala-ai-mini_project/blob/0d8405e060188e7bd88a4c93a101ba4b40c1beb9/agent/graph.py#L279)
 - 최종: [agent/validator.py:54](../agent/validator.py#L54)
 - 한계: 등록된 참조·조건의 검사이며 모든 자연어 의미를 증명하지는 않습니다.
 
@@ -119,7 +119,7 @@ AI와 코드의 분리를 처음 만든 것이 아니라 생성 책임을 더 �
 
 전체 Multi-Agent 기반 신규 도입보다 작성·검토 역할 분리 추가라고 설명합니다.
 
-- 원본: [agent/graph.py:310](../기존과제자료_백업_20261020/agent/graph.py#L310)
+- 원본: [agent/graph.py:310](https://github.com/jeonginlee09-cpu/skala-ai-mini_project/blob/0d8405e060188e7bd88a4c93a101ba4b40c1beb9/agent/graph.py#L310)
 - 최종: [agent/semantic_review.py:25](../agent/semantic_review.py#L25), [agent/openai_llm.py:225](../agent/openai_llm.py#L225)
 - 한계: 같은 모델의 판단 오류가 남으며 사람 승인이 아닙니다.
 
@@ -127,21 +127,21 @@ AI와 코드의 분리를 처음 만든 것이 아니라 생성 책임을 더 �
 
 무한 루프 방지 신규 도입이 아니라 한도 도달 후 처리 정책과 검토 상한을 변경했습니다.
 
-- 원본: [agent/graph.py:281](../기존과제자료_백업_20261020/agent/graph.py#L281)
+- 원본: [agent/graph.py:281](https://github.com/jeonginlee09-cpu/skala-ai-mini_project/blob/0d8405e060188e7bd88a4c93a101ba4b40c1beb9/agent/graph.py#L281)
 - 최종: [agent/graph.py:35](../agent/graph.py#L35), [agent/graph.py:500](../agent/graph.py#L500)
 
 ### A15 대화 저장·요청별 State
 
 기억 기능의 첫 구현이 아니라 저장·동시 요청·작업 자료 경계를 보완했습니다.
 
-- 원본: [server.py:128](../기존과제자료_백업_20261020/server.py#L128), [agent/session_store.py:29](../기존과제자료_백업_20261020/agent/session_store.py#L29)
+- 원본: [server.py:128](https://github.com/jeonginlee09-cpu/skala-ai-mini_project/blob/0d8405e060188e7bd88a4c93a101ba4b40c1beb9/server.py#L128), [agent/session_store.py:29](https://github.com/jeonginlee09-cpu/skala-ai-mini_project/blob/0d8405e060188e7bd88a4c93a101ba4b40c1beb9/agent/session_store.py#L29)
 - 최종: [agent/session_store.py:39](../agent/session_store.py#L39), [server.py:194](../server.py#L194)
 
 ### A16 운영 후속 질문의 대상 연결
 
 SQLite 기억과 별도로 운영 조사에 필요한 지시 대상 처리를 추가했습니다.
 
-- 원본: [agent/graph.py:94](../기존과제자료_백업_20261020/agent/graph.py#L94), [agent/graph.py:78](../기존과제자료_백업_20261020/agent/graph.py#L78)
+- 원본: [agent/graph.py:94](https://github.com/jeonginlee09-cpu/skala-ai-mini_project/blob/0d8405e060188e7bd88a4c93a101ba4b40c1beb9/agent/graph.py#L94), [agent/graph.py:78](https://github.com/jeonginlee09-cpu/skala-ai-mini_project/blob/0d8405e060188e7bd88a4c93a101ba4b40c1beb9/agent/graph.py#L78)
 - 최종: [agent/request_context.py:13](../agent/request_context.py#L13), [agent/graph.py:114](../agent/graph.py#L114)
 - 한계: 등록한 한국어 표현과 최근 10개 메시지 범위이며 범용 대명사 해석은 아닙니다.
 
@@ -149,7 +149,7 @@ SQLite 기억과 별도로 운영 조사에 필요한 지시 대상 처리를 �
 
 원본에도 최종 답변 표시가 있었습니다. 요청 간 혼입과 공개 시점을 보완했습니다.
 
-- 원본: [web_chat.html:182](../기존과제자료_백업_20261020/web_chat.html#L182)
+- 원본: [web_chat.html:182](https://github.com/jeonginlee09-cpu/skala-ai-mini_project/blob/0d8405e060188e7bd88a4c93a101ba4b40c1beb9/web_chat.html#L182)
 - 최종: [request_ui.js:4](../request_ui.js#L4), [agent/graph.py:389](../agent/graph.py#L389)
 - 한계: 과거 혼입 현상의 원인을 State 한 곳으로 확정하지 않습니다.
 
@@ -157,7 +157,7 @@ SQLite 기억과 별도로 운영 조사에 필요한 지시 대상 처리를 �
 
 SSE 신규 도입이 아니라 수신 종류와 실제 OpenAI 조각 중계를 보완했습니다.
 
-- 원본: [server.py:173](../기존과제자료_백업_20261020/server.py#L173), [agent/openai_llm.py:194](../기존과제자료_백업_20261020/agent/openai_llm.py#L194)
+- 원본: [server.py:173](https://github.com/jeonginlee09-cpu/skala-ai-mini_project/blob/0d8405e060188e7bd88a4c93a101ba4b40c1beb9/server.py#L173), [agent/openai_llm.py:194](https://github.com/jeonginlee09-cpu/skala-ai-mini_project/blob/0d8405e060188e7bd88a4c93a101ba4b40c1beb9/agent/openai_llm.py#L194)
 - 최종: [agent/openai_stream.py:49](../agent/openai_stream.py#L49), [server.py:248](../server.py#L248)
 - 한계: 스트리밍 전용 새 검사·첫 토큰 지표는 추가하지 않았습니다.
 
@@ -165,12 +165,12 @@ SSE 신규 도입이 아니라 수신 종류와 실제 OpenAI 조각 중계를 �
 
 모델 추정 요약을 현재값 비교와 한계 표시로 제한했습니다.
 
-- 원본: [agent/graph.py:243](../기존과제자료_백업_20261020/agent/graph.py#L243)
+- 원본: [agent/graph.py:243](https://github.com/jeonginlee09-cpu/skala-ai-mini_project/blob/0d8405e060188e7bd88a4c93a101ba4b40c1beb9/agent/graph.py#L243)
 - 최종: [agent/graph.py:381](../agent/graph.py#L381)
 - 한계: 정교한 근본 원인 분석 성능 향상을 입증한 변경은 아닙니다.
 
 ## 읽는 기준
 
-원본 소스 링크는 이 컴퓨터의 보존 폴더를 가리킵니다. 보존 폴더가 없는 Git 사본에서는 원본 커밋의 같은 파일을 확인할 수 있습니다. [기계 확인용 근거](original_final_feature_audit.json)에는 실제 코드 구절·줄 번호·파일 해시를 함께 저장했습니다.
+원본 소스 링크는 저장소의 원본 커밋을 가리킵니다. 로컬 원본 백업도 그대로 보존했습니다. [기계 확인용 근거](evidence/original_final_feature_audit.json)에는 실제 코드 구절·줄 번호·파일 해시를 함께 저장했습니다.
 
 이번 작업은 설명자료 수정입니다. 운영 코드는 바꾸지 않았고 새 API 실험도 실행하지 않았습니다. 최종 제품 소스와 동일한 기존 실측만 사용합니다.

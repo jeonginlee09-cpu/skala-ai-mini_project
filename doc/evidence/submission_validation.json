@@ -1,0 +1,25 @@
+{
+  "student": "3반 G092 이정인",
+  "pdf_pages": 9,
+  "pdf_bytes": 439180,
+  "pdf_sha256": "e36c5ff897aacc2ae4724fc3f4fea7cd8b7ba1c7d64233e3e93020eede458e88",
+  "all_pdf_pages_visually_reviewed": true,
+  "screenshot_pages_1_based": [
+    5,
+    6,
+    7
+  ],
+  "real_ui_screenshots": 3,
+  "screenshot_sha256_verified": true,
+  "korean_font_embedded": "Pretendard",
+  "rubric_sections_present": true,
+  "presentation_minutes": 5,
+  "presentation_first_part_minutes": 2,
+  "presentation_code_part_minutes": 3,
+  "same_input_capture_pair": true,
+  "paired_run_statistics_changed": false,
+  "product_runtime_changed": false,
+  "cleanup_obsolete_doc_files": 19,
+  "doc_root_files": 6,
+  "new_human_scoring_or_invoice_claim": false
+}

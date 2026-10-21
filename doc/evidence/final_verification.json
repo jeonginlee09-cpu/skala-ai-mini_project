@@ -10,7 +10,7 @@
   "pptx_slides": 9,
   "pptx_native_tables": 1,
   "pptx_notes": 9,
-  "pptx_sha256": "f3c7935c4e52d4990db7023bfd6453e60db185b37051ef1e2ba816e50266f46e",
+  "pptx_sha256": "c42949bcdc889f40bb720a88c906c20d4b9a1608d5fa5e9b3250131a879bf932",
   "all_slides_visually_reviewed": true,
   "native_powerpoint_execution_verified": false,
   "html_visual_reviewed": false,
@@ -26,5 +26,9 @@
   ],
   "source_features_audited": 19,
   "runtime_changed_in_document_revision": false,
-  "measurement_rerun_in_document_revision": false
+  "comparison_66_rerun_in_document_revision": false,
+  "separate_screenshot_demo_executed": true,
+  "report_student": "3반 G092 이정인",
+  "report_pdf_pages": 9,
+  "presentation_timing": "2분 기능·결과 + 3분 코드 설명"
 }

@@ -88,6 +88,6 @@
 
 ## 증빙 위치
 
-- [집계 CSV](final_comparison.csv) · [작은 측정 요약](final_measurement_summary.json) · [실제 응답 예시](final_execution_examples.json)
-- [최종 코드 설명](final_code_guide.md) · [평가 항목 점검](final_review.md)
+- [집계 CSV](evidence/final_comparison.csv) · [작은 측정 요약](evidence/final_measurement_summary.json) · [실제 응답 예시](evidence/final_execution_examples.json)
+- [최종 코드 설명](final_code_guide.md) · [제출 보고서](report.md)
 - 원시 요청·응답·제공자 usage·고정 샘플·소스 해시·LangSmith 재조회는 `evidence/final_alignment_verified_20261021/`에 보존합니다. 키·대화 DB와 원시 로그는 Git에 넣지 않습니다.

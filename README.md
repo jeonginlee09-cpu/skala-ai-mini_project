@@ -16,13 +16,14 @@ FastAPI lifespan, MCP 별도 stdio 프로세스, DI, LangGraph·LangSmith, 병�
 
 ## 제출자가 먼저 볼 자료
 
-1. [최종 Before/After 실측 비교](doc/final_comparison.md) · [CSV](doc/final_comparison.csv)
-2. [주요 코드와 교재 근거](doc/final_code_guide.md) · [HTML 설명](doc/final_code_guide.html)
-3. [평가표 점검·검증 범위·한계](doc/final_review.md)
-4. [발표 자료](output/AI_Agent_개선_최종발표.pptx) · [발표문](doc/presentation_script.md)
-5. [원본 기능 대조](doc/original_final_feature_audit.md) · [실제 답변 예시](doc/final_execution_examples.json) · [작은 실측 요약](doc/final_measurement_summary.json)
+**3반 G092 이정인 / 과제 1**
 
-같은 11개 입력을 원본과 최종 수정본에 각각 3회 실행합니다. 검색 준비와 별도 새 기능 검사는 본 비교에서 분리합니다. 자동 검사·AI Reviewer 승인·처리 완료율은 독립 평가자가 채점한 답변 정답률이 아닙니다. 실제 청구액과 실제 발표 여부도 미확인입니다.
+1. [제출용 보고서 PDF](output/pdf/AI_Agent_개선보고서_3반_G092_이정인.pdf) · [보고서 원문](doc/report.md)
+2. [5분 발표 PPT](output/AI_Agent_개선_최종발표.pptx) · [2분·3분 발표문](doc/presentation_script.md)
+3. [핵심 코드 설명](doc/final_code_guide.md) · [원본 기능 대조](doc/original_final_feature_audit.md)
+4. [동일 입력 실측 전체 표](doc/final_comparison.md) · [CSV](doc/evidence/final_comparison.csv)
+
+최종 증빙은 `doc/evidence/`, 실제 실행 캡처는 `doc/assets/`에 정리했습니다. 원시 실행 자료와 원본 백업은 보존했습니다. 자동 처리·검수 통과는 독립 평가자의 정답률이 아니며 실제 청구액은 미측정입니다.
 
 ## 실행 방법
 

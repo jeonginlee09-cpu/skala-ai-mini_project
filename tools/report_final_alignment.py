@@ -163,12 +163,12 @@ def main(check_traces=False):
         for r in rows])
     (OUT / 'summary.json').write_text(json.dumps(payload, ensure_ascii=False, indent=2))
     (OUT / 'feature_checks.json').write_text(json.dumps(checked_features, ensure_ascii=False, indent=2))
-    (ROOT / 'doc/final_comparison.csv').write_bytes((OUT / 'comparison.csv').read_bytes())
+    (ROOT / 'doc/evidence/final_comparison.csv').write_bytes((OUT / 'comparison.csv').read_bytes())
     compact = [{k: r.get(k) for k in ('variant', 'case_id', 'question', 'answer', 'status', 'request_id',
         'actual_targets', 'actual_runbooks', 'total_s')} for r in rows if r['round'] == 1]
     compact.extend(checked_features)
-    (ROOT / 'doc/final_execution_examples.json').write_text(json.dumps(compact, ensure_ascii=False, indent=2))
-    (ROOT / 'doc/final_measurement_summary.json').write_text(json.dumps(payload, ensure_ascii=False, indent=2))
+    (ROOT / 'doc/evidence/final_execution_examples.json').write_text(json.dumps(compact, ensure_ascii=False, indent=2))
+    (ROOT / 'doc/evidence/final_measurement_summary.json').write_text(json.dumps(payload, ensure_ascii=False, indent=2))
     old, new = summary['original'], summary['latest']
     fmt = lambda v: f'{v:.3f}' if isinstance(v, float) else f'{v:,}'
     notes = [
@@ -203,16 +203,16 @@ def main(check_traces=False):
         '', '## 질문별 중앙값', '', '| 질문 | 기존 초 | 수정본 초 |', '|---|---:|---:|']
     lines += ['| ' + r['case_id'] + ' ' + r['question'] + ' | ' + f"{r['original_median_s']:.3f}" + ' | ' + f"{r['latest_median_s']:.3f}" + ' |' for r in per_question]
     lines += ['', '## 증빙 위치', '',
-        '- [집계 CSV](final_comparison.csv) · [작은 측정 요약](final_measurement_summary.json) · [실제 응답 예시](final_execution_examples.json)',
-        '- [최종 코드 설명](final_code_guide.md) · [평가 항목 점검](final_review.md)',
+        '- [집계 CSV](evidence/final_comparison.csv) · [작은 측정 요약](evidence/final_measurement_summary.json) · [실제 응답 예시](evidence/final_execution_examples.json)',
+        '- [최종 코드 설명](final_code_guide.md) · [제출 보고서](report.md)',
         '- 원시 요청·응답·제공자 usage·고정 샘플·소스 해시·LangSmith 재조회는 `evidence/final_alignment_verified_20261021/`에 보존합니다. 키·대화 DB와 원시 로그는 Git에 넣지 않습니다.',
     ]
     (ROOT / 'doc/final_comparison.md').write_text('\n'.join(lines) + '\n')
     from markdown_it import MarkdownIt
     body = MarkdownIt('commonmark', {'html': False}).enable('table').render('\n'.join(lines))
     # The HTML lives beside the raw records, so rewrite only relative report links.
-    for target in ('final_comparison.csv', 'final_measurement_summary.json', 'final_execution_examples.json',
-                   'final_code_guide.md', 'final_review.md'):
+    for target in ('evidence/final_comparison.csv', 'evidence/final_measurement_summary.json', 'evidence/final_execution_examples.json',
+                   'final_code_guide.md', 'report.md'):
         body = body.replace('href="' + target + '"', 'href="../../doc/' + target + '"')
     style = 'body{max-width:1100px;margin:32px auto;padding:24px;color:#24334a;background:#f5f7fb;font:16px/1.8 -apple-system,"Apple SD Gothic Neo",sans-serif}table{border-collapse:collapse;background:white;width:100%}th,td{border:1px solid #dce4ef;padding:10px;text-align:left}th{background:#eaf0fa}pre{white-space:pre-wrap;word-break:break-word}a{color:#2457a5}details{background:white;margin:16px 0;padding:18px}'
     page = '<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>최종 실측 비교</title><style>' + style + '</style></head><body>' + body

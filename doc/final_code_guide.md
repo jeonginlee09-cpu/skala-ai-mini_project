@@ -33,11 +33,11 @@ FastAPI lifespan, MCP의 별도 stdio 프로세스, DI, LangGraph, LangSmith, �
      → 복잡한 요청만 별도 Reviewer → 최종 답변 또는 실패 보류
 ```
 
-[원본 graph.py](../기존과제자료_백업_20261020/agent/graph.py#L313)와 [최종 build_graph()](../agent/graph.py#L510)를 함께 보면 추가·변경한 단계가 드러납니다. 일반 대화는 두 버전 모두 무거운 조사 경로를 건너뜁니다.
+[원본 graph.py](https://github.com/jeonginlee09-cpu/skala-ai-mini_project/blob/0d8405e060188e7bd88a4c93a101ba4b40c1beb9/agent/graph.py#L313)와 [최종 build_graph()](../agent/graph.py#L510)를 함께 보면 추가·변경한 단계가 드러납니다. 일반 대화는 두 버전 모두 무거운 조사 경로를 건너뜁니다.
 
 ## 3. 복수 서비스가 처음 가능해진 것이 아닙니다
 
-**원본:** [OpenAIFastLLM.plan()](../기존과제자료_백업_20261020/agent/openai_llm.py#L133)은 서비스마다 작업을 만들도록 요청하고 대상 이름·중복을 보정합니다. 연구 작업이 하나도 없으면 질문의 알려진 대상을 복구합니다. 다만 두 대상을 요청했는데 하나만 계획된 경우, `if not seen:` 조건은 거짓이므로 그 복구 분기가 작동하지 않습니다.
+**원본:** [OpenAIFastLLM.plan()](https://github.com/jeonginlee09-cpu/skala-ai-mini_project/blob/0d8405e060188e7bd88a4c93a101ba4b40c1beb9/agent/openai_llm.py#L133)은 서비스마다 작업을 만들도록 요청하고 대상 이름·중복을 보정합니다. 연구 작업이 하나도 없으면 질문의 알려진 대상을 복구합니다. 다만 두 대상을 요청했는데 하나만 계획된 경우, `if not seen:` 조건은 거짓이므로 그 복구 분기가 작동하지 않습니다.
 
 **최종:** [enforce_scope()](../agent/target_scope.py#L12)가 질문에서 명시한 전체 대상과 계획을 대조합니다. 조회 후에도 [coverage()](../agent/target_scope.py#L42)로 실제 응답의 서비스명·상태·유효한 CPU/메모리·알림을 확인합니다. 부족한 대상만 한 차례 더 조회하고 끝내 못 얻으면 미확인으로 답합니다.
 
@@ -53,7 +53,7 @@ FastAPI lifespan, MCP의 별도 stdio 프로세스, DI, LangGraph, LangSmith, �
 
 ## 4. 런북 선택을 키워드에서 RAG로 바꿨습니다
 
-**원본:** [_classify_incident_type()](../기존과제자료_백업_20261020/agent/graph.py#L205)는 모니터링 결과의 알림을 합치고 규칙을 순서대로 검사합니다. 처음 맞는 키워드의 장애 유형 하나를 반환하며, 일치하지 않으면 `db-down`을 반환합니다. 원본도 이 런북을 읽어 Writer에게 제공했습니다.
+**원본:** [_classify_incident_type()](https://github.com/jeonginlee09-cpu/skala-ai-mini_project/blob/0d8405e060188e7bd88a4c93a101ba4b40c1beb9/agent/graph.py#L205)는 모니터링 결과의 알림을 합치고 규칙을 순서대로 검사합니다. 처음 맞는 키워드의 장애 유형 하나를 반환하며, 일치하지 않으면 `db-down`을 반환합니다. 원본도 이 런북을 읽어 Writer에게 제공했습니다.
 
 **최종:** [RunbookRetriever.search()](../agent/runbook_retriever.py#L75)는 다음 순서로 찾습니다.
 
@@ -71,7 +71,7 @@ FastAPI lifespan, MCP의 별도 stdio 프로세스, DI, LangGraph, LangSmith, �
 
 ## 5. 형식 검사에서 근거·조건 검수로 강화했습니다
 
-**원본:** [write_node()](../기존과제자료_백업_20261020/agent/graph.py#L257)가 모니터링·런북·분석 결과로 모델의 자유문장 답변을 받습니다. [validate_node()](../기존과제자료_백업_20261020/agent/graph.py#L275)는 30자 이상인지와 `1)` 포함 여부를 확인합니다.
+**원본:** [write_node()](https://github.com/jeonginlee09-cpu/skala-ai-mini_project/blob/0d8405e060188e7bd88a4c93a101ba4b40c1beb9/agent/graph.py#L257)가 모니터링·런북·분석 결과로 모델의 자유문장 답변을 받습니다. [validate_node()](https://github.com/jeonginlee09-cpu/skala-ai-mini_project/blob/0d8405e060188e7bd88a4c93a101ba4b40c1beb9/agent/graph.py#L275)는 30자 이상인지와 `1)` 포함 여부를 확인합니다.
 
 **최종:** [ReportSelection](../agent/report_selection.py#L9)은 모델 출력에 `action_ids`, `hypothesis_ids`만 허용합니다. 모델은 이번 요청의 허용된 절차·가설 번호를 선택합니다.
 
@@ -103,7 +103,7 @@ class ReportSelection(StrictModel):
 
 ## 6. 대화 저장을 운영 후속 질문에도 연결했습니다
 
-**원본:** [server.py](../기존과제자료_백업_20261020/server.py#L126)는 `thread_id`로 SQLite 대화를 읽습니다. 일반 대화는 이를 사용하지만 운영 분류·계획은 현재 질문을 사용합니다. 이름 회상과 대화 저장 자체는 이미 있었습니다.
+**원본:** [server.py](https://github.com/jeonginlee09-cpu/skala-ai-mini_project/blob/0d8405e060188e7bd88a4c93a101ba4b40c1beb9/server.py#L126)는 `thread_id`로 SQLite 대화를 읽습니다. 일반 대화는 이를 사용하지만 운영 분류·계획은 현재 질문을 사용합니다. 이름 회상과 대화 저장 자체는 이미 있었습니다.
 
 **최종:** [resolve_followup()](../agent/request_context.py#L13)이 최근 사용자 메시지의 서비스 이름을 찾아 작업용 `effective_query`에 연결합니다.
 
@@ -139,4 +139,4 @@ class ReportSelection(StrictModel):
 
 기술 개념의 수업자료 근거는 유지합니다. AI Agent 설계 및 구축 p.41·74~75는 Chroma·RAG, p.108·116~118은 역할 분리·검토를 설명합니다. Capstone p.148·155·165·170은 게이트·재계획·검수·반복 방지, p.209는 대화 지속성, p.217·219·221은 모듈·DI·테스트입니다. 정확한 필드명과 현재 횟수·보류 정책은 프로젝트의 구현 선택입니다.
 
-발표에는 [원본 대조표](original_final_feature_audit.md), [실제 응답](final_execution_examples.json), [실측 표](final_comparison.csv)를 근거로 사용하면 됩니다. 이번 수정은 설명자료·PPT 수정이며 제품 코드와 이미 확보한 실측값을 바꾸지 않았습니다.
+발표에는 [원본 대조표](original_final_feature_audit.md), [실제 응답](evidence/final_execution_examples.json), [실측 표](evidence/final_comparison.csv)를 근거로 사용하면 됩니다. 제품 코드와 기존 실측값은 그대로 보존했습니다.
