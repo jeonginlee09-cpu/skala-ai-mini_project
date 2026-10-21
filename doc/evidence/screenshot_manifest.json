@@ -1,19 +1,21 @@
 {
-  "scope": "보고서용 별도 실제 화면 시연",
+  "scope": "최신 제출 보고서용 실제 화면 시연",
   "class": "3반",
   "number": "G092",
   "name": "이정인",
   "screenshots": [
     {
-      "file": "../assets/function_flow.jpg",
-      "sha256": "685b1d04233b65f99e525a7110f2063c2bd1b33d84772b997c0583eb78ec4dca",
+      "file": "../assets/current_flow.png",
+      "sha256": "39de47341d0903c1dfb8dbd7c3a8bce5b4e8ef061f863137161a04de6a4b73aa",
       "variant": "최종 개선본",
-      "input": "payments-service CPU 상태를 확인해줘",
-      "source_commit": "69d58eb",
+      "role": "최신 처리 과정",
+      "input": "cache-service 메모리 사용률이 계속 올라가고 있어요",
+      "source_commit": "f2e26e1",
+      "measured_backend_commit": "69d58eb",
       "capture_date": "2026-10-21",
-      "capture_method": "CUA actual localhost UI screenshot; no image editing",
-      "port": 18620,
-      "fixed_sample": false,
+      "capture_method": "CUA actual localhost full-page screenshot; no image editing",
+      "port": 18623,
+      "fixed_sample": true,
       "included_in_66_run_statistics": false
     },
     {
@@ -29,14 +31,16 @@
       "included_in_66_run_statistics": false
     },
     {
-      "file": "../assets/after_comparison.jpg",
-      "sha256": "eb9a285463b2e50550f651f8bbb7bf6df7b93383c152210cc5eea1a8a7d2ec6d",
+      "file": "../assets/current_answer.png",
+      "sha256": "8aa7557abc148bca1e89b80c3b1d596b5ba65b1168dce1b72ab7e51d5b6b4e7c",
       "variant": "최종 개선본",
+      "role": "최신 간결한 답변",
       "input": "cache-service 메모리 사용률이 계속 올라가고 있어요",
-      "source_commit": "69d58eb",
+      "source_commit": "f2e26e1",
+      "measured_backend_commit": "69d58eb",
       "capture_date": "2026-10-21",
-      "capture_method": "CUA actual localhost UI screenshot; no image editing",
-      "port": 18622,
+      "capture_method": "CUA actual localhost full-page screenshot; no image editing",
+      "port": 18623,
       "fixed_sample": true,
       "included_in_66_run_statistics": false
     }

@@ -1,8 +1,8 @@
 {
   "student": "3반 G092 이정인",
   "pdf_pages": 9,
-  "pdf_bytes": 439180,
-  "pdf_sha256": "e36c5ff897aacc2ae4724fc3f4fea7cd8b7ba1c7d64233e3e93020eede458e88",
+  "pdf_bytes": 323122,
+  "pdf_sha256": "92e5c23af9dc301a725978c70870de72e87614559aa483ecbd791869294b652f",
   "all_pdf_pages_visually_reviewed": true,
   "screenshot_pages_1_based": [
     5,
@@ -18,39 +18,48 @@
   "presentation_code_part_minutes": 3,
   "same_input_capture_pair": true,
   "paired_run_statistics_changed": false,
-  "cleanup_obsolete_doc_files": 19,
   "doc_root_files": 6,
   "new_human_scoring_or_invoice_claim": false,
   "report_preparation_changed_product_runtime": false,
   "ui_readability": {
-    "scope": "화면 표시만 변경; 기존 보고서·PPT 실측과 별도",
+    "scope": "최신 화면 표시와 제출 문서 갱신; 기존 66건 성능 실측과 별도",
     "measured_product_commit": "69d58ebbc7d77911f708bfccf54884f27f7eae7e",
     "source_sha256": {
       "request_ui.js": "7072c43b566f8153f1b3bdfdb0957db20027e919a33463847dc628b2c5538dc9",
       "web_chat.html": "2d37a68200b3207ae7249a7400b5a6d7332ad1fb0970fb0cd4291b6ca9f04ff9"
     },
     "receipt_sha256": {
-      "evidence/readability_20261021/python_tests.log": "887657a5fc69af57251527b58355a78853e25d7465a8182ace1272dd33fa1009",
-      "evidence/readability_20261021/ui_tests.log": "409799eca6102defe94e69027a50eac438bd6de749f4f00de73b19f156fad36e",
-      "evidence/readability_20261021/live_demo.json": "c18b88a1966769f8094345100b21dec202313a6f47df0d912cf610dc4a3aa739",
-      "doc/assets/readable_answer.jpg": "62e299bf843e592742aa58096b929069b5a7c7ccfc0b6df4d18a4fa71ee6695b"
+      "evidence/submission_final_refresh_20261021/python_tests.log": "623f8fba797ed976554ceccc640acf90198539a0d6dfbc8ab12676dba72e466a",
+      "evidence/submission_final_refresh_20261021/ui_tests.log": "dbd7eafc8d591cd609873e6d99366e25777e75e829e61ea0b791cfe0866e3ef1",
+      "evidence/submission_final_refresh_20261021/final_cache_demo.json": "f6d1bbaa473e4f1ea7ce2cf850dd83b504ddcdfbb6dcc9e64a17cabb1d52d0e9",
+      "doc/assets/current_answer.png": "8aa7557abc148bca1e89b80c3b1d596b5ba65b1168dce1b72ab7e51d5b6b4e7c"
     },
+    "python_test_log": "evidence/submission_final_refresh_20261021/python_tests.log",
+    "ui_test_log": "evidence/submission_final_refresh_20261021/ui_tests.log",
+    "live_demo_path": "evidence/submission_final_refresh_20261021/final_cache_demo.json",
     "python_tests_passed": 90,
     "ui_tests_passed": 11,
     "live_demo": {
-      "question": "payments-service 결제 응답이 느려지고 CPU가 치솟았어요, 원인 확인해주세요",
-      "raw_characters": 1673,
-      "compact_visible_characters": 315,
+      "question": "cache-service 메모리 사용률이 계속 올라가고 있어요",
+      "raw_characters": 1365,
+      "compact_visible_characters": 320,
       "full_evidence_id_in_detail": true,
       "full_evidence_id_in_compact": false,
       "sources_visible": true,
       "disclaimer_visible": true,
       "full_detail_expansion_checked": true,
       "console_errors": 0,
-      "console_warnings": 0
+      "console_warnings": 0,
+      "fixed_memory_percent": 89
     },
     "new_model_summary_call": false,
     "model_input_or_raw_reply_changed": false,
     "performance_benchmark_rerun": false
-  }
+  },
+  "all_pptx_slides_visually_reviewed": true,
+  "latest_ui_source_commit": "f2e26e1",
+  "current_python_tests_passed": 90,
+  "current_ui_tests_passed": 11,
+  "measured_product_ui_tests_passed": 5,
+  "cleanup_obsolete_submission_files": 22
 }

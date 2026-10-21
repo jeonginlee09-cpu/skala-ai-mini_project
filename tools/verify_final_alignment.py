@@ -52,11 +52,11 @@ def main():
     ui_log = (OUT / 'green_ui.log').read_text()
     assert re.search(r'Ran 90 tests', python_log) and python_log.rstrip().endswith('OK')
     assert re.search(r'(?m)^[#ℹ] pass 5$', ui_log) and re.search(r'(?m)^[#ℹ] fail 0$', ui_log)
-    current_python = (ROOT / 'evidence/readability_20261021/python_tests.log').read_text()
-    current_ui = (ROOT / 'evidence/readability_20261021/ui_tests.log').read_text()
+    current_python = (ROOT / readability['python_test_log']).read_text()
+    current_ui = (ROOT / readability['ui_test_log']).read_text()
     assert re.search(r'Ran 90 tests', current_python) and current_python.rstrip().endswith('OK')
     assert re.search(r'(?m)^[#ℹ] pass 11$', current_ui) and re.search(r'(?m)^[#ℹ] fail 0$', current_ui)
-    live_demo = json.loads((ROOT / 'evidence/readability_20261021/live_demo.json').read_text())
+    live_demo = json.loads((ROOT / readability['live_demo_path']).read_text())
     assert live_demo['full_detail_expansion_checked'] and live_demo['full_evidence_id_in_detail']
     assert not live_demo['full_evidence_id_in_compact']
     assert live_demo['sources_visible'] and live_demo['disclaimer_visible']
@@ -75,16 +75,25 @@ def main():
     for name in ['evidence/final_alignment_verified_20261021/report.html']:
         parser = HTMLParser(); parser.feed((ROOT / name).read_text()); parser.close()
     deck = ROOT / 'output/AI_Agent_개선_최종발표.pptx'
-    receipt = json.loads((ROOT / 'evidence/submission_report_20261021/validation.json').read_text())
+    receipt = json.loads((ROOT / 'evidence/submission_final_refresh_20261021/validation.json').read_text())
     assert hashlib.sha256(deck.read_bytes()).hexdigest() == receipt['finalSha256']
     assert receipt['packageIntegrity']['status'] == 'pass'
     assert receipt['presentationLayout']['finding_count'] == 0
     assert receipt['firstPartyImport']['passed'] and receipt['nativeTableArithmetic']['native_table_count'] == 1
+    pdf = ROOT / 'output/pdf/AI_Agent_개선보고서_3반_G092_이정인.pdf'
+    assert hashlib.sha256(pdf.read_bytes()).hexdigest() == submission['pdf_sha256']
+    assert submission['pdf_pages'] == 9 and submission['all_pdf_pages_visually_reviewed']
+    screenshots = json.loads((ROOT / 'doc/evidence/screenshot_manifest.json').read_text())
+    for capture in screenshots['screenshots']:
+        image = ROOT / 'doc/evidence' / capture['file']
+        assert hashlib.sha256(image.read_bytes()).hexdigest() == capture['sha256']
+    assert screenshots['before_after_same_input'] and screenshots['before_after_sample_memory_percent'] == 89.0
     with zipfile.ZipFile(deck) as archive:
         slide_names = [name for name in archive.namelist() if re.fullmatch(r'ppt/slides/slide\d+\.xml', name)]
         note_names = [name for name in archive.namelist() if re.fullmatch(r'ppt/notesSlides/notesSlide\d+\.xml', name)]
         assert len(slide_names) == len(note_names) == 9
         visible_text = '\n'.join(archive.read(name).decode() for name in slide_names + note_names)
+        assert '화면 11개' in visible_text and '현재 p95' in visible_text
         assert not any(word in visible_text for word in ['직전', '중간 버전', '최대 두 문서', '두 개 제한'])
         table = archive.read('ppt/slides/slide4.xml').decode()
         for name in ['original', 'latest']:
@@ -133,6 +142,8 @@ def main():
         'runtime_changed_in_document_revision': False, 'comparison_66_rerun_in_document_revision': False,
         'separate_screenshot_demo_executed': True, 'report_student': '3반 G092 이정인',
         'report_pdf_pages': 9, 'presentation_timing': '2분 기능·결과 + 3분 코드 설명'}
+    payload['submission_cleanup_files'] = submission['cleanup_obsolete_submission_files']
+    payload['current_screenshots_verified'] = len(screenshots['screenshots'])
     (OUT / 'verification.json').write_text(json.dumps(payload, ensure_ascii=False, indent=2))
     (ROOT / 'doc/evidence/final_verification.json').write_text(json.dumps(payload, ensure_ascii=False, indent=2))
     print(json.dumps(payload, ensure_ascii=False, indent=2))
