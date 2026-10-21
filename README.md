@@ -10,6 +10,8 @@ Python 검사 76개·화면 검사 5개가 통과했습니다. 실제 API 예시
 
 아래 99건 비교 수치는 Reviewer 추가 전 기록입니다. 새 버전의 성능 수치로 혼용하지 않습니다.
 
+최신 Reviewer 포함 버전과 원본을 같은 입력으로 각각 33건 새로 실행한 결과는 [66건 실측 비교](doc/reviewer_comparison.md)에 있습니다. 평균 처리시간은 4.099초→2.977초, 전체 모델 토큰은 29,648→65,687개입니다. 시간은 줄었지만 Reviewer의 입력 비용이 추가되어 토큰은 늘었습니다. [변경 전후 코드 해설](doc/reviewer_code_walkthrough.md) · [읽기 편한 HTML 해설](doc/reviewer_code_walkthrough.html). 원본·샘플·소스 해시와 LangSmith 66건을 확인했으며, 정답률·실제 청구액은 측정하지 않았습니다.
+
 ## 10월 21일 messages·updates 스트리밍 수정
 
 일반 대화는 OpenAI의 실제 텍스트 조각을 `messages`로 받고, 노드 결과는 `updates`로 구분합니다. 코드가 직접 호출하는 MCP·검색 작업의 시작·완료·실패는 `custom`으로 즉시 알립니다. 추가 SDK나 추가 모델 호출 없이 기존 langchain-core/httpx로 연결했으며, 장애 보고서는 검수 후 공개합니다. [변경 설명](doc/streaming_revision.md).

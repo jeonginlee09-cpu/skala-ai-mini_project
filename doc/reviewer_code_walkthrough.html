@@ -1,0 +1,376 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>기존·최신 코드 설명 자료</title><style>
+    :root{color-scheme:light}*{box-sizing:border-box}body{margin:0;background:#f2f5fa;color:#24334a;
+    font:16px/1.8 Pretendard,-apple-system,"Apple SD Gothic Neo",sans-serif}main{max-width:1100px;
+    margin:32px auto;padding:36px 48px;background:white;border:1px solid #dce4ef;border-radius:16px}
+    h1{font-size:30px;line-height:1.5;margin:0 0 22px}h2{font-size:23px;margin:42px 0 16px;
+    padding-top:14px;border-top:2px solid #e4ebf5}h3{font-size:19px;margin-top:28px;color:#1e4a83}
+    a{color:#245bb1;text-underline-offset:3px}p{margin:12px 0}blockquote{margin:20px 0;padding:12px 20px;
+    border-left:4px solid #376cc3;background:#eef4ff}pre{overflow:auto;background:#13243c;color:#e9f0fa;
+    border-radius:10px;padding:18px;font:14px/1.7 ui-monospace,monospace}code{font-size:.9em}
+    p code,td code,li code{background:#eef2f8;color:#314b72;padding:2px 5px;border-radius:4px}
+    table{border-collapse:collapse;width:100%;font-size:14px;display:block;overflow:auto;margin:16px 0}
+    th,td{border:1px solid #dce4ef;padding:10px 12px;vertical-align:top;min-width:125px}
+    th{background:#edf3fc;text-align:left}ul,ol{padding-left:24px}li{margin:7px 0}
+    .nav{display:flex;gap:20px;flex-wrap:wrap;background:#eaf1fc;padding:14px 18px;border-radius:8px;margin-bottom:25px}
+    @media(max-width:700px){main{margin:0;padding:22px 18px;border:0;border-radius:0}h1{font-size:25px}}
+    @media print{main{margin:0;max-width:none;border:0;padding:10px}pre,table,blockquote{break-inside:avoid}}
+    </style></head><body><main><nav class="nav"><a href="../evidence/reviewer_comparison_20261021/report.html">66건 실측·실제 답변 비교</a><a href="reviewer_comparison.csv">집계 CSV</a></nav><h1>기존 과제에서 최신 Reviewer 버전까지 — 코드 설명 자료</h1>
+<p>이 자료는 <strong>기존 과제 백업 → 최신 제품 코드 2e0f3ee</strong>의 변경을 설명합니다. 이번 작업에서는 제품 코드를 다시 바꾸지 않고, 두 버전의 실제 실행을 비교하고 설명 자료를 작성했습니다.</p>
+<p>먼저 <a href="../evidence/reviewer_comparison_20261021/report.html">새로 측정한 수치와 조건</a>을 확인하세요. 화면으로 읽기 좋은 <a href="../evidence/reviewer_comparison_20261021/report.html">실측 보고서</a>에는 같은 질문의 양쪽 실제 답변과 전체 이벤트 링크가 있습니다.</p>
+<p>이번 실측의 평균은 <strong>4.099초→2.977초(27.4% 단축)</strong>, 전체 모델 토큰은 **29,648개→65,687개(121.6% 증가)**입니다. 시간은 줄었지만 근거 입력과 Reviewer 검토 비용이 추가되었습니다. <a href="reviewer_comparison_examples.json">각 첫 실행의 실제 답변 22건</a>도 Git에 보관합니다. 원시 SSE·제공자 입력·전체 66건 기록은 로컬 <code>evidence/</code>에 보관하고 업로드 대상에서 제외합니다.</p>
+<h2>1. 다른 사람에게 가장 먼저 할 설명</h2>
+<blockquote>
+<p>기존 과제에도 질문 분류, 작업 계획, MCP 조회, 답변 작성 기능은 있었습니다. 저는 그 위에 ‘질문에 나온 대상을 빠짐없이 확인하는 검사’, ‘증상에 맞는 런북 검색’, ‘조회한 사실과 조건에 맞는 답변 검사’를 추가했습니다. 마지막으로 복잡한 요청은 작성 역할과 별도의 AI Reviewer가 다시 읽도록 구성했습니다. 모델이 말한 수치를 그대로 믿기보다, 조회한 자료와 연결해 설명하도록 바꿨습니다.</p>
+</blockquote>
+<p>새 버전은 모든 질문에 AI를 여러 번 호출하는 방식이 아닙니다. 일반 대화는 대화 경로로 바로 답하고, 장애 요청 중에서도 단순한 요청은 Reviewer를 생략합니다.</p>
+<h2>2. 먼저 알아둘 코드 용어</h2>
+<table>
+<thead>
+<tr>
+<th>용어</th>
+<th>이 프로젝트에서의 뜻</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>함수(function)</td>
+<td>입력을 받아 정해진 처리를 수행하는 코드 묶음입니다. <code>requested_targets()</code>가 예입니다.</td>
+</tr>
+<tr>
+<td>노드(node)</td>
+<td>그래프에 등록한 한 단계입니다. <code>review_node</code>는 Python 함수이며, <code>review</code>라는 이름으로 등록합니다.</td>
+</tr>
+<tr>
+<td>상태(State)</td>
+<td>질문·조회 결과·검색 근거·검수 결과를 담아 다음 단계로 넘기는 작업 기록입니다.</td>
+</tr>
+<tr>
+<td>Edge</td>
+<td>다음에 실행할 노드를 정하는 연결입니다. 조건부 Edge는 합격·반려 등에 따라 길을 나눕니다.</td>
+</tr>
+<tr>
+<td>Agent</td>
+<td>모델과 지시문을 이용해 판단하는 역할입니다. 작성과 검토는 별도 역할·지시문을 사용합니다. 모든 노드가 Agent인 것은 아닙니다.</td>
+</tr>
+<tr>
+<td>MCP</td>
+<td>모니터링 도구와 런북 자료를 정해진 통신 방식으로 제공하는 연결 규격입니다. 이 프로젝트는 실제 stdio 자식 프로세스와 통신합니다.</td>
+</tr>
+<tr>
+<td>RAG</td>
+<td>필요한 문서를 찾아 모델에 근거로 제공하는 방식입니다. 여기서는 장애 대응 매뉴얼인 런북을 찾습니다.</td>
+</tr>
+<tr>
+<td>임베딩·Chroma</td>
+<td>문장을 숫자 벡터로 바꾸고, 의미가 가까운 문서를 검색하는 저장소입니다. Chroma의 검색 거리 자체가 정답 확률은 아닙니다.</td>
+</tr>
+<tr>
+<td>의존성 주입(DI)</td>
+<td>함수 안에서 모델·MCP를 매번 만들지 않고, 준비된 객체를 <code>deps</code>로 전달하는 방식입니다.</td>
+</tr>
+<tr>
+<td>Validator / Reviewer</td>
+<td>Validator는 수치·ID·조건을 코드로 검사하고, Reviewer는 질문과 답변의 의미가 맞는지 별도 모델로 읽습니다.</td>
+</tr>
+</tbody>
+</table>
+<h2>3. 질문 하나가 처리되는 전체 흐름</h2>
+<pre><code class="language-text">사용자 질문 → server.py의 chat_stream()
+  → 저장된 대화만 읽기 + 이번 요청의 새 State 만들기
+  → route: 일반 대화인가, 장애 조사인가?
+      일반 대화 → chat_answer → 최종 답변
+      장애 조사 → plan → gate → research → replan_check
+                    │        │          └ 누락된 조회만 제한적으로 재시도
+                    │        └ MCP에서 모니터링 자료 조회
+                    └ 요청 대상과 계획의 대상 대조
+        → retrieve_runbooks: Chroma 검색 → 원문 확인 → 최대 2개 런북
+        → analysis: 필요한 경우 검증된 현재값 비교 준비
+        → write: 모델이 절차·가설 ID 선택
+        → validate: 코드가 수치·출처·조건 검사
+            불합격 → 제한된 재작성 / 한도 초과 시 답변 보류
+            합격 → review
+                단순 요청 → Reviewer 생략 → finalize
+                복잡한 요청 → 독립 Reviewer
+                    승인 → finalize
+                    첫 반려 → write로 돌아가 수정 → validate → review
+                    재반려 또는 오류 → 답변 보류
+</code></pre>
+<p>실제 연결 코드는 <a href="../agent/graph.py#L518">graph.py의 build_graph()</a>입니다. 일반 대화까지 무거운 조사 경로로 보내지 않는 라우팅은 기존 과제에서 이어받았습니다.</p>
+<h3>State에서 따라가면 좋은 키</h3>
+<table>
+<thead>
+<tr>
+<th>키</th>
+<th>누가 기록하는가</th>
+<th>왜 필요한가</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>query</code>, <code>history</code>, <code>request_id</code></td>
+<td><code>initial_state()</code></td>
+<td>이번 질문·이전 대화·요청 식별자를 구분합니다.</td>
+</tr>
+<tr>
+<td><code>requested_targets</code></td>
+<td><code>plan_node()</code></td>
+<td>사용자가 요청한 서비스 목록입니다.</td>
+</tr>
+<tr>
+<td><code>tasks</code>, <code>collected</code></td>
+<td>계획·조사 노드</td>
+<td>할 일과 실제 조회 결과를 구분합니다.</td>
+</tr>
+<tr>
+<td><code>verified_targets</code>, <code>unverified_targets</code></td>
+<td><code>replan_check_node()</code></td>
+<td>조회를 시도한 것과 유효한 값을 얻은 것을 구분합니다.</td>
+</tr>
+<tr>
+<td><code>grounded_evidence</code></td>
+<td><code>build_evidence()</code></td>
+<td>조회값에 근거 ID를 부여합니다.</td>
+</tr>
+<tr>
+<td><code>runbook_hits</code>, <code>action_catalog</code></td>
+<td>검색·조건 준비 코드</td>
+<td>확보한 런북과 그 안에서 선택할 수 있는 절차입니다.</td>
+</tr>
+<tr>
+<td><code>structured_draft</code>, <code>validation_result</code></td>
+<td>작성·코드 검수</td>
+<td>구조화된 답변과 코드 검사 결과입니다.</td>
+</tr>
+<tr>
+<td><code>review_status</code>, <code>review_result</code></td>
+<td><code>review_node()</code></td>
+<td>별도 모델이 승인했는지, 생략했는지, 반려했는지 기록합니다.</td>
+</tr>
+<tr>
+<td><code>draft</code>, <code>final</code></td>
+<td>검수·최종 노드</td>
+<td>내부에서 검토하는 답변과 사용자에게 확정해 보내는 답변입니다.</td>
+</tr>
+</tbody>
+</table>
+<h2>4. 어디를 어떻게 바꿨는가</h2>
+<h3>A. 이전 질문의 작업 자료와 이번 질문을 분리했습니다</h3>
+<p><strong>문제의 성격:</strong> 대화 기록은 기억해야 하지만, 이전 장애 질문의 조사 결과·초안까지 새 질문의 근거로 섞이면 안 됩니다. 과거 화면 혼입의 모든 원인이 State 때문이었다고 단정하지 않습니다.</p>
+<p><strong>수정:</strong> <a href="../agent/request_state.py#L11">request_state.py</a>의 <code>initial_state()</code>가 요청마다 <code>tasks</code>, <code>collected</code>, <code>draft</code>, 검수·Reviewer 상태를 새로 만듭니다. 이전 대화는 별도의 <code>history</code>에만 복사합니다. 서버는 같은 대화의 겹치는 요청을 잠금으로 순서대로 처리합니다.</p>
+<pre><code class="language-python"># 실제 코드 발췌: 매번 새로운 리스트를 만듭니다.
+'history': [dict(m) for m in history],
+'events': [], 'tasks': [], 'collected': [],
+'draft': '', 'final': ''
+</code></pre>
+<p><a href="../request_ui.js#L4">request_ui.js</a>에서는 요청 ID가 다른 늦은 이벤트를 거르고 최종 답변 중복을 방지하도록 보완했습니다. 이를 “이름 기억 기능을 새로 만들었다”고 설명하면 부정확합니다. 세션 저장은 기존에도 있었고, 작업 상태와 표시의 혼입 방지를 보완한 것입니다.</p>
+<p><strong>발표 표현:</strong> “기억해야 하는 대화와, 질문마다 새로 확인해야 하는 조사 자료를 분리했습니다.”</p>
+<h3>B. 모델이 짠 계획을 코드가 한 번 더 검사합니다</h3>
+<p><strong>기존:</strong> <a href="../%EA%B8%B0%EC%A1%B4%EA%B3%BC%EC%A0%9C%EC%9E%90%EB%A3%8C_%EB%B0%B1%EC%97%85_20261020/agent/graph.py#L101">원본 plan_node()</a>는 계획 모델이 만든 <code>tasks</code>를 받습니다. 원본 게이트는 불필요한 <code>analysis</code> 작업을 제거하지만, 명시적으로 요청한 모든 서비스가 조회 목록에 있는지 강제하지는 않습니다.</p>
+<p><strong>수정:</strong> <a href="../agent/target_scope.py#L7">target_scope.py</a>의 <code>requested_targets()</code>가 질문에서 알려진 서비스명을 모두 찾습니다. <code>enforce_scope()</code>는 이 목록으로 모니터링 작업을 구성해 누락·중복·범위 밖 계획을 정리합니다.</p>
+<pre><code class="language-python"># 실제 gate_node() 발췌
+expected = state.get('requested_targets') or requested_targets(state['query'], KNOWN_SYSTEMS)
+tasks, scope_report = enforce_scope(state['tasks'], expected)
+</code></pre>
+<p>예를 들어 payments-service와 cache-service를 모두 물었다면 <code>expected</code>는 두 이름의 목록입니다. 모델 계획이 하나만 넣더라도 코드가 두 조회 작업을 만듭니다. 조회 후에는 <code>coverage()</code>로 <strong>대상 이름·상태·유효한 CPU/메모리 수치</strong>를 확인합니다. 부족하면 누락 대상만 한 차례 더 조회하고, 끝내 못 얻으면 미확인으로 답합니다.</p>
+<p><strong>한계:</strong> 아직 지원 목록에 없는 <code>billing-service</code>는 기존 정책대로 <code>auth-service</code>로 대체됩니다. 이것을 billing-service 조사 성공으로 설명하면 안 됩니다. 또한 명시하지 않은 의존 서비스의 자동 발견은 이 범위 검사로 해결하지 않았습니다.</p>
+<p><strong>발표 표현:</strong> “AI가 계획을 세우되, 사용자가 요청한 서비스가 빠졌는지는 Python 코드가 검사합니다.”</p>
+<h3>C. 첫 키워드 하나로 고르던 런북을 검색으로 찾습니다</h3>
+<p><strong>기존:</strong> <a href="../%EA%B8%B0%EC%A1%B4%EA%B3%BC%EC%A0%9C%EC%9E%90%EB%A3%8C_%EB%B0%B1%EC%97%85_20261020/agent/graph.py#L205">원본 _classify_incident_type()</a>는 알림을 합친 문자열에서 규칙을 순서대로 확인하고 첫 일치의 런북 유형을 반환합니다. 매칭이 없으면 <code>db-down</code>으로 대체합니다. 여러 증상이 있어도 이 경로는 유형 하나를 돌려줍니다.</p>
+<p><strong>수정:</strong> <a href="../agent/runbook_retriever.py#L75">runbook_retriever.py의 search()</a>는 다음 순서로 찾습니다.</p>
+<ol>
+<li>서비스별 알림과 사용자 질문을 각각 검색 문장으로 만듭니다. 한 서비스의 CPU 문구가 다른 서비스의 메모리 증상을 덮지 않게 분리합니다.</li>
+<li>임베딩으로 Chroma의 여섯 런북 중 의미가 가까운 후보를 찾습니다. 짧은 런북이므로 문서 전체를 저장합니다.</li>
+<li>관련성 필터가 후보를 고릅니다. 필터가 제시한 질문 인용·문서 인용이 실제 원문 안에 있는지도 코드로 확인합니다.</li>
+<li>중복을 합치고 최대 두 런북을 선택합니다. 개수 제한 때문에 모든 복합 장애를 다 포괄한다고 보장하지 않습니다.</li>
+<li><a href="../agent/graph.py#L313">retrieve_runbooks_node()</a>가 MCP에서 원문을 다시 읽고 해시를 비교합니다. 해시는 내용의 일치 여부를 확인하며, 런북 자체의 최신성이나 옳음을 보증하지는 않습니다.</li>
+</ol>
+<p>검색 실패·결과 없음은 최대 두 번의 검색 시도로 제한합니다. 근거를 못 얻으면 임의의 대응 절차를 만들지 않습니다. 현재 파일에 남아 있는 <code>_classify_incident_type()</code>만 보고 최신 경로도 키워드 검색이라고 설명하지 마세요. 최신 그래프의 실제 Edge는 <code>retrieve_runbooks</code>로 연결되어 있습니다.</p>
+<p><strong>발표 표현:</strong> “CPU와 메모리가 동시에 문제라면 두 증상을 따로 검색하고, 실제로 읽은 매뉴얼만 답변 근거로 사용합니다.”</p>
+<h3>D. 모델에게 긴 보고서 대신 근거 안의 ID를 선택하게 했습니다</h3>
+<p><strong>기존:</strong> 모델이 수집 자료로 자유로운 보고서 문장을 생성했습니다.</p>
+<p><strong>수정:</strong> <a href="../agent/report_selection.py#L9">report_selection.py</a>의 모델 출력 계약은 짧습니다.</p>
+<pre><code class="language-python">class ReportSelection(StrictModel):
+    action_ids: list[str]
+    hypothesis_ids: list[str]
+</code></pre>
+<p><code>selection_context()</code>는 이번 요청에만 쓰는 절차 번호 A1·A2, 가설 번호 H1·H2를 모델에 줍니다. 예를 들어 <code>{&quot;action_ids&quot;:[&quot;A1&quot;],&quot;hypothesis_ids&quot;:[]}</code>는 <strong>형식을 보여주는 예시</strong>이며 특정 요청의 실측 출력은 아닙니다. ID의 뜻은 매 요청 달라집니다.</p>
+<p><code>expand_selection()</code>은 존재하지 않는 ID와 임의 필드를 거부하고, 실제 조회값으로 사실 부분을 구성합니다. 조치 조건이 모두 확인되지 않으면 <code>conditional</code>로 표시합니다. <code>execution_status</code>는 항상 <code>proposed</code>로 구성하므로, 안내만 했는데 조치를 실행했다고 표현하지 않습니다.</p>
+<p><strong>발표 표현:</strong> “AI는 관련 절차를 고르고, 서비스명·숫자·조건·출처는 코드가 붙입니다. 모델이 긴 문장을 만들면서 값을 바꿀 여지를 줄였습니다.”</p>
+<h3>E. 형식 검수를 근거·조건 검수로 강화했습니다</h3>
+<p><strong>기존 실제 코드:</strong> <a href="../%EA%B8%B0%EC%A1%B4%EA%B3%BC%EC%A0%9C%EC%9E%90%EB%A3%8C_%EB%B0%B1%EC%97%85_20261020/agent/graph.py#L275">원본 validate_node()</a></p>
+<pre><code class="language-python">ok = len(draft) &gt;= 30 and &quot;1)&quot; in draft
+if not ok and attempts &gt;= 3:
+    ok, verdict = True, &quot;합격(최대 시도 도달 — 통과 처리)&quot;
+</code></pre>
+<p>길이와 번호는 형식만 확인합니다. 올바른 서비스의 숫자인지, 런북의 적용 조건을 지켰는지는 이 검사로 알 수 없습니다.</p>
+<p><strong>수정:</strong> <a href="../agent/validator.py#L54">validator.py의 validate_report()</a>가 다음을 검사합니다.</p>
+<ul>
+<li>근거 ID가 존재하고 대상·수치가 실제 조회값과 같은지</li>
+<li>요청한 서비스마다 상태·CPU·메모리 사실이 포함됐는지</li>
+<li>선택한 절차가 실제 읽은 런북의 허용 목록에 있는지</li>
+<li>조건이 미확인인데 즉시 조치처럼 권고하지 않았는지</li>
+<li>가설이 런북의 허용된 후보인지</li>
+</ul>
+<p>현재 CPU가 높다는 값 하나로 “일정 시간 이상 지속됨”을 입증할 수는 없습니다. 지속 시간 자료가 없으면 그 조건은 <code>unknown</code>으로 남습니다. 숫자가 있는 알림 문장도 현재 측정 필드로 바꾸지 않고, 알림 인용으로 구분합니다.</p>
+<p><strong>최신 분기 코드:</strong></p>
+<pre><code class="language-python">if state['validation_result']['passed']:
+    return 'review'
+return 'write' if state['validation_attempts'] &lt; MAX_REPORT_ATTEMPTS else 'validation_failed'
+</code></pre>
+<p>작성·코드 검수는 최초 포함 최대 3회입니다. 한도 도달을 합격으로 바꾸지 않습니다.</p>
+<p><strong>발표 표현:</strong> “기존에는 형식이 맞으면 통과했지만, 지금은 ‘어느 서비스의 어떤 근거로 이 말을 했는지’를 검사합니다.”</p>
+<h3>F. 복잡한 답변에는 독립 Reviewer 역할을 추가했습니다</h3>
+<p><a href="../server.py#L90">server.py의 _build_reviewer()</a>는 기본적으로 OpenAI용 Reviewer 객체를 별도로 만듭니다. 기본 모델은 품질 모델인 gpt-4o이며, 별도 시스템 지시문을 사용합니다. 같은 제공자·같은 모델 계열을 써도 작성과 검토는 서로 다른 역할입니다. 그렇다고 완전히 독립된 사실 확인 기관이 되는 것은 아닙니다.</p>
+<p><a href="../agent/semantic_review.py#L25">semantic_review.py의 review_policy()</a>는 <strong>코드 검수 통과·조회 자료·절차 후보 확보</strong>를 전제로, 다음 중 하나이면 검토를 요청합니다.</p>
+<ul>
+<li>요청 서비스가 둘 이상</li>
+<li>읽은 런북이 둘 이상</li>
+<li>비교 분석 요청</li>
+</ul>
+<p>Reviewer는 누락·무관한 절차·비교 미응답·원인 단정·자료 한계 누락을 읽습니다. 결과는 승인 여부와 수정 의견이며, 새로운 측정값을 만들거나 MCP를 호출하지 않습니다. <code>draft_quote</code>가 초안의 실제 문장인지와 대상·절차 ID도 코드가 확인합니다.</p>
+<pre><code class="language-python"># 실제 조건부 Edge 함수 발췌
+if state['review_status'] in {'approved', 'skipped'}:
+    return 'finalize'
+if (state['review_status'] == 'rejected'
+        and state['review_attempts'] &lt; MAX_REVIEW_ATTEMPTS
+        and state['validation_attempts'] &lt; MAX_REPORT_ATTEMPTS):
+    return 'write'
+return 'review_failed'
+</code></pre>
+<p>최대 두 번의 Reviewer 검토입니다. 첫 반려는 작성 단계로 돌아가고 <strong>코드 검수도 다시 받습니다</strong>. 재반려·오류는 성공 답변으로 보내지 않습니다. 한계를 적절히 설명한 답변에 없는 데이터까지 요구하지 않도록 Reviewer 기준도 정의했습니다.</p>
+<p><strong>발표 표현:</strong> “숫자와 조건은 코드가 검사하고, 복잡한 질문의 요구를 놓치지 않았는지는 별도 AI 역할이 검토합니다. 검토자도 틀릴 수 있어 실제 초안 인용을 요구하고 횟수를 제한했습니다.”</p>
+<h3>G. 토큰과 상태 업데이트를 구분해 전달합니다</h3>
+<p><a href="../server.py#L217">server.py의 chat_stream()</a>은 <code>stream_mode=[&quot;messages&quot;, &quot;updates&quot;, &quot;custom&quot;]</code>을 사용합니다.</p>
+<table>
+<thead>
+<tr>
+<th>채널</th>
+<th>실제로 쓰는 용도</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>messages</code></td>
+<td>일반 대화 노드의 실제 모델 생성 조각을 화면에 전달합니다. 내부 계획·장애 JSON·검토 초안은 노출하지 않습니다.</td>
+</tr>
+<tr>
+<td><code>updates</code></td>
+<td>각 노드가 끝나며 반환한 상태와 검수·검색·Reviewer 결과를 전달합니다.</td>
+</tr>
+<tr>
+<td><code>custom</code></td>
+<td>코드가 실제 MCP 호출 전후에 기록한 도구 시작·완료·오류와 Reviewer 시작을 전달합니다.</td>
+</tr>
+</tbody>
+</table>
+<p>수업의 ReAct 예시는 모델의 tool-call 메시지를 변환하지만, 이 프로젝트는 코드가 MCP를 직접 호출합니다. 따라서 수업 그림과 똑같이 보이게 도구 메시지를 만들어내지 않고 실제 호출 위치에서 이벤트를 발생시킵니다. 검수 전 장애 초안이 화면으로 새지 않도록 한 점도 차이입니다. 별도의 스트리밍 전용 검증 항목은 추가하지 않았습니다.</p>
+<h2>5. 실제 질문으로 설명하기</h2>
+<p><strong>실제 비교 질문 Q06:</strong> “payments-service랑 cache-service 둘 다 저하됐는데 공통 원인이 있는지 분석해줘”</p>
+<p>첫 번째 반복 실행에서 양쪽 모두 두 서비스를 조회했습니다. 이번 원본에서 이 질문이 조회 누락을 일으켰다고 설명하면 안 됩니다.</p>
+<table>
+<thead>
+<tr>
+<th>확인 항목</th>
+<th>기존 과제의 첫 실행</th>
+<th>최신 버전의 첫 실행</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>payments-service</td>
+<td>CPU 91.0%, 메모리 55.0%, degraded</td>
+<td>동일</td>
+</tr>
+<tr>
+<td>cache-service</td>
+<td>CPU 42.0%, 메모리 89.0%, degraded</td>
+<td>동일</td>
+</tr>
+<tr>
+<td>읽은 런북</td>
+<td>cpu-spike</td>
+<td>memory-leak, cpu-spike</td>
+</tr>
+<tr>
+<td>별도 Reviewer</td>
+<td>없음</td>
+<td>1회 승인, 제공자 usage 2,527토큰</td>
+</tr>
+<tr>
+<td>원인 관련 표현</td>
+<td>“공통 원인은 발견되지 않았습니다.”</td>
+<td>현재값만으로 공통 원인·추세를 확정할 수 없고 시계열·배포·호출 관계 확인이 필요하다고 표시</td>
+</tr>
+</tbody>
+</table>
+<p>위 숫자는 이번 실험의 고정 수업 샘플입니다. 실제 서비스 장애의 측정값이 아닙니다. Reviewer 2,527토큰은 이 요청의 검토 호출만이며, 요청 전체 토큰과 다릅니다.</p>
+<p>실행 자료는 <code>evidence/reviewer_comparison_20261021/runs/cmp-latest-Q06-r01/response.json</code>입니다. <code>PlanCoverageChecked → TaskCompleted → CoverageChecked → RunbookLoaded → Validation → ReviewerCompleted → FinalAnswer</code>를 차례로 보면 코드가 무엇을 했는지 확인할 수 있습니다.</p>
+<h2>6. 이어받은 기능과 실제 추가한 기능을 구분하기</h2>
+<table>
+<thead>
+<tr>
+<th>요소</th>
+<th>기존 과제에서 이어받은 부분</th>
+<th>보완한 부분</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LangGraph</td>
+<td>라우팅·계획·조사·작성·검수 흐름</td>
+<td>조사 범위, RAG, 근거 검수, 조건부 Reviewer 경로</td>
+</tr>
+<tr>
+<td>Multi-Agent</td>
+<td>계획·조사·작성 등 역할 구분</td>
+<td>독립 지시문·출력 계약을 갖는 Reviewer 추가. 모든 노드가 자율 Agent는 아닙니다.</td>
+</tr>
+<tr>
+<td>MCP</td>
+<td>도구·자료·프롬프트 조회와 연결 관리</td>
+<td>실제 호출 이벤트, 런북 원문·해시 확인. 별도 네트워크 서비스 배포는 하지 않았습니다.</td>
+</tr>
+<tr>
+<td>의존성 주입</td>
+<td><code>SupervisorDeps</code>, <code>partial(fn, deps=deps)</code></td>
+<td><code>retriever</code>, <code>reviewer</code>를 주입 대상에 추가</td>
+</tr>
+<tr>
+<td>수명주기 관리</td>
+<td>FastAPI lifespan에서 객체·연결 재사용</td>
+<td>검색기와 Reviewer도 서버 시작 시 준비</td>
+</tr>
+<tr>
+<td>LangSmith</td>
+<td>실행 흐름 추적</td>
+<td>새 검색·검수·Reviewer 흐름과 실제 비교 요청 재조회</td>
+</tr>
+<tr>
+<td>세션</td>
+<td>SQLite 대화 보관</td>
+<td>새 요청 State와 작업 자료 분리, 동시 요청·표시 처리 보완</td>
+</tr>
+<tr>
+<td>테스트</td>
+<td>기존 회귀 검사</td>
+<td>범위·근거·조건·Reviewer 실패 및 반복 상한을 검사하는 테스트 보완</td>
+</tr>
+</tbody>
+</table>
+<p>최근 제품 버전의 Python 76개·화면 처리 5개 테스트 결과는 <code>evidence/conditional_reviewer_20261021/green_tests.log</code>, <code>green_ui.log</code>에 있습니다. 이는 새 66건의 실제 API 비교와 <strong>별도의 검사 증빙</strong>입니다. 단위 테스트의 성공을 실제 답변 정확도 100%라고 바꾸어 말하지 않습니다.</p>
+<h2>7. 발표할 때 사용할 1분 설명</h2>
+<blockquote>
+<p>이 프로젝트는 장애 관련 질문을 받으면 모니터링 자료와 대응 매뉴얼을 찾아 안내합니다. 기존에는 모델이 만든 조사 계획을 실행하고, 답변 길이와 번호 같은 형식을 검사했습니다. 저는 먼저 사용자가 요청한 서비스 목록과 실제 조회 결과를 대조하도록 했습니다. 그다음 CPU와 메모리처럼 여러 증상에 맞는 런북을 검색해 최대 두 개까지 읽게 했습니다. 답변을 만들 때도 AI가 숫자를 다시 쓰게 하지 않고, 근거 안의 절차 ID를 선택하게 했습니다. 수치와 적용 조건은 코드가 검사하고, 복잡한 답변만 별도 Reviewer가 검토합니다. 확인하지 못한 원인과 실행하지 않은 조치는 명확히 구분합니다. 성능 비교는 같은 입력을 양쪽에 33건씩 실행했으며, 처리 완료와 실제 정답 여부를 구분해서 해석했습니다.</p>
+</blockquote>
+<h2>8. 질문을 받으면 이렇게 답하세요</h2>
+<p><strong>“Reviewer가 있으니 정확한가요?”</strong></p>
+<p>“추가 검토 단계가 생긴 것입니다. 실제 원인 확인과 독립 평가자의 정답 채점까지 완료했다는 뜻은 아닙니다.”</p>
+<p><strong>“왜 AI 대신 코드를 많이 쓰나요?”</strong></p>
+<p>“절차의 관련성을 고르는 일에는 모델을 쓰고, 수치가 같은지·서비스가 빠졌는지처럼 명확히 검사할 수 있는 부분은 코드로 처리했습니다.”</p>
+<p><strong>“Chroma만 추가하면 해결되나요?”</strong></p>
+<p>“비슷한 문서를 찾는 것과 그 문서가 이 서비스에 적용되는지는 다릅니다. 그래서 관련성 인용 검사, 원문 확인, 적용 조건 검수를 함께 둡니다.”</p>
+<p><strong>“사람 승인도 들어갔나요?”</strong></p>
+<p>“현재 추가한 것은 AI Reviewer입니다. 담당자의 실제 승인 대기·재개는 아직 구현하지 않았고, 조치 실행 도구도 없습니다.”</p>
+<p><strong>“기존보다 무조건 빨라졌나요?”</strong></p>
+<p>“최신 전체 버전의 실제 비교 수치를 보여드리겠습니다. 절차 ID 선택은 출력을 줄이지만 복잡한 요청의 Reviewer 호출은 비용을 더합니다. 각각의 효과를 따로 분리해 측정한 실험은 아닙니다.”</p>
+</main></body></html>
