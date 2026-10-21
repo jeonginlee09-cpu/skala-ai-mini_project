@@ -6,6 +6,8 @@
 
 복수 서비스·복수 런북·비교 분석 요청은 코드 검수 후 별도 프롬프트의 Reviewer가 질문 적합성과 누락을 검토합니다. 첫 반려는 Writer로 돌아가고 수정 초안도 코드 검수를 다시 받습니다. 재반려·검토 오류는 `review_failed`로 종료합니다. Reviewer 2회·Writer 3회 상한이며, 단순 요청은 검토 호출을 생략합니다. OpenAI에 적용했고 fake/Ollama는 비활성으로 표시합니다. [설계·설정·한계](doc/conditional_reviewer.md).
 
+Python 검사 76개·화면 검사 5개가 통과했습니다. 실제 API 예시 4건에서 일반 대화는 미호출, 단순 조회는 생략, 복수 서비스와 복합 증상은 각각 Reviewer 1회 승인으로 완료됐고 LangSmith 4건을 재조회했습니다. [질문·실제 응답·검토 결과](doc/reviewer_execution_examples.json). 반려 후 환류·상한·오류 종료는 통제된 테스트로 확인했습니다.
+
 아래 99건 비교 수치는 Reviewer 추가 전 기록입니다. 새 버전의 성능 수치로 혼용하지 않습니다.
 
 ## 10월 21일 messages·updates 스트리밍 수정

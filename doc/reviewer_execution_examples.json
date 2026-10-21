@@ -1,0 +1,55 @@
+{
+  "date": "2026-10-21",
+  "source_commit": "854c2c5c54022c2d7d06134c74a803b9aa7fec78",
+  "examples": [
+    {
+      "question": "안녕, 너는 누구야?",
+      "request_id": "reviewer-854c2c5-chat",
+      "status": "success",
+      "review_status": "not_requested",
+      "review_attempts": 0,
+      "review_result": {},
+      "answer": "안녕하세요! 저는 당신의 비서입니다. 도움이 필요하시면 말씀해 주세요."
+    },
+    {
+      "question": "cache-service 현재 메모리 사용률만 알려줘",
+      "request_id": "reviewer-854c2c5-simple",
+      "status": "success",
+      "review_status": "skipped",
+      "review_attempts": 0,
+      "review_result": {
+        "reason": "simple_request"
+      },
+      "answer": "실습 샘플 자료에 근거한 안내입니다. 실제 조치는 실행하지 않았습니다.\n1) 확인한 사실\n- cache-service 상태: degraded (현재 조회) [근거 reviewer-854c2c5-simple:observation:cache-service:status]\n- cache-service CPU: 42.0% (현재 조회) [근거 reviewer-854c2c5-simple:observation:cache-service:cpu_percent]\n- cache-service 메모리: 89.0% (현재 조회) [근거 reviewer-854c2c5-simple:observation:cache-service:memory_percent]\n- cache-service 알림 인용: memory usage climbing steadily over 6h (발생 시각 미확인) [근거 reviewer-854c2c5-simple:alert:cache-service:0]\n- cache-service 알림 인용: heap near limit (발생 시각 미확인) [근거 reviewer-854c2c5-simple:alert:cache-service:1]\n2) 원인 가설·권고\n- cache-service 점검 가설: 캐시 무제한 증가·객체 누적 또는 자원 미반환. 런북이 제시하는 가능성이며 원인 확인은 필요합니다.\n- cache-service 점검 권고: get_monitoring_status로 메모리 사용률 추세(시간에 따라 꾸준히 증가하는지)를 확인한다. [런북 memory-leak 절차 1]\n- cache-service 점검 권고: 힙 덤프 또는 프로파일링 도구로 어떤 객체가 계속 쌓이는지 확인한다. [런북 memory-leak 절차 3]\n- cache-service 점검 권고: 캐시 무제한 증가, 커넥션 미반환, 이벤트 리스너 중복 등록 같은 패턴이 최근 배포에 있었는지 점검한다. [런북 memory-leak 절차 4]\n3) 미확인·근거\n- 근거 범위: 현재 조회한 상태·CPU·메모리와 알림 원문 및 런북입니다.\n- 미확보 자료: 시계열 지표·상세 로그·배포 이력·서비스 호출 관계입니다. 실제 원인과 추세는 확정하지 않았습니다.\n- 추가 원인 확인과 조치 후 결과 확인이 필요합니다.\n- Runbook: 메모리 누수(Memory Leak) 대응 절차: data/runbooks/memory-leak.md · runbook://incident-response/memory-leak · 해시 085f00e9bba5"
+    },
+    {
+      "question": "payments-service랑 cache-service 둘 다 저하됐는데 공통 원인이 있는지 분석해줘",
+      "request_id": "reviewer-854c2c5-multi",
+      "status": "success",
+      "review_status": "approved",
+      "review_attempts": 1,
+      "review_result": {
+        "approved": true,
+        "issues": []
+      },
+      "answer": "실습 샘플 자료에 근거한 안내입니다. 실제 조치는 실행하지 않았습니다.\n1) 확인한 사실\n- payments-service 상태: degraded (현재 조회) [근거 reviewer-854c2c5-multi:observation:payments-service:status]\n- payments-service CPU: 91.0% (현재 조회) [근거 reviewer-854c2c5-multi:observation:payments-service:cpu_percent]\n- payments-service 메모리: 55.0% (현재 조회) [근거 reviewer-854c2c5-multi:observation:payments-service:memory_percent]\n- cache-service 상태: degraded (현재 조회) [근거 reviewer-854c2c5-multi:observation:cache-service:status]\n- cache-service CPU: 42.0% (현재 조회) [근거 reviewer-854c2c5-multi:observation:cache-service:cpu_percent]\n- cache-service 메모리: 89.0% (현재 조회) [근거 reviewer-854c2c5-multi:observation:cache-service:memory_percent]\n- payments-service 알림 인용: CPU 91% (threshold 80%) (발생 시각 미확인) [근거 reviewer-854c2c5-multi:alert:payments-service:0]\n- payments-service 알림 인용: payments-service-3 instance responding slow (발생 시각 미확인) [근거 reviewer-854c2c5-multi:alert:payments-service:1]\n- cache-service 알림 인용: memory usage climbing steadily over 6h (발생 시각 미확인) [근거 reviewer-854c2c5-multi:alert:cache-service:0]\n- cache-service 알림 인용: heap near limit (발생 시각 미확인) [근거 reviewer-854c2c5-multi:alert:cache-service:1]\n2) 원인 가설·권고\n- 서비스 간 현재값 비교(코드): payments-service: 상태=degraded, CPU 91.0%, 메모리 55.0%; cache-service: 상태=degraded, CPU 42.0%, 메모리 89.0%\n- 현재값만으로 공통 원인·증가 추세는 확정할 수 없습니다. 시계열·배포·호출 관계 확인이 필요합니다.\n- cache-service 점검 가설: 캐시 무제한 증가·객체 누적 또는 자원 미반환. 런북이 제시하는 가능성이며 원인 확인은 필요합니다.\n- payments-service 점검 가설: 반복 호출 또는 배치 작업 중복 실행. 런북이 제시하는 가능성이며 원인 확인은 필요합니다.\n- cache-service 점검 권고: get_monitoring_status로 메모리 사용률 추세(시간에 따라 꾸준히 증가하는지)를 확인한다. [런북 memory-leak 절차 1]\n- cache-service 점검 권고: 힙 덤프 또는 프로파일링 도구로 어떤 객체가 계속 쌓이는지 확인한다. [런북 memory-leak 절차 3]\n- cache-service 점검 권고: 캐시 무제한 증가, 커넥션 미반환, 이벤트 리스너 중복 등록 같은 패턴이 최근 배포에 있었는지 점검한다. [런북 memory-leak 절차 4]\n- payments-service 점검 권고: get_monitoring_status로 CPU 사용률과 최근 배포/트래픽 변화 시점을 확인한다. [런북 cpu-spike 절차 1]\n- payments-service 점검 권고: 반복 호출, 배치 작업 중복 실행 같은 특정 요청 패턴이 원인인지 최근 로그에서 확인한다. [런북 cpu-spike 절차 2]\n3) 미확인·근거\n- 근거 범위: 현재 조회한 상태·CPU·메모리와 알림 원문 및 런북입니다.\n- 미확보 자료: 시계열 지표·상세 로그·배포 이력·서비스 호출 관계입니다. 실제 원인과 추세는 확정하지 않았습니다.\n- 추가 원인 확인과 조치 후 결과 확인이 필요합니다.\n- Runbook: 메모리 누수(Memory Leak) 대응 절차: data/runbooks/memory-leak.md · runbook://incident-response/memory-leak · 해시 085f00e9bba5\n- Runbook: CPU 급증 대응 절차: data/runbooks/cpu-spike.md · runbook://incident-response/cpu-spike · 해시 30796f7b5c1d"
+    },
+    {
+      "question": "payments-service 결제 응답이 느려지고 CPU가 치솟았어요, 원인 확인해주세요",
+      "request_id": "reviewer-854c2c5-symptoms",
+      "status": "success",
+      "review_status": "approved",
+      "review_attempts": 1,
+      "review_result": {
+        "approved": true,
+        "issues": []
+      },
+      "answer": "실습 샘플 자료에 근거한 안내입니다. 실제 조치는 실행하지 않았습니다.\n1) 확인한 사실\n- payments-service 상태: degraded (현재 조회) [근거 reviewer-854c2c5-symptoms:observation:payments-service:status]\n- payments-service CPU: 91.0% (현재 조회) [근거 reviewer-854c2c5-symptoms:observation:payments-service:cpu_percent]\n- payments-service 메모리: 55.0% (현재 조회) [근거 reviewer-854c2c5-symptoms:observation:payments-service:memory_percent]\n- payments-service 알림 인용: CPU 91% (threshold 80%) (발생 시각 미확인) [근거 reviewer-854c2c5-symptoms:alert:payments-service:0]\n- payments-service 알림 인용: payments-service-3 instance responding slow (발생 시각 미확인) [근거 reviewer-854c2c5-symptoms:alert:payments-service:1]\n2) 원인 가설·권고\n- 현재값만으로 공통 원인·증가 추세는 확정할 수 없습니다. 시계열·배포·호출 관계 확인이 필요합니다.\n- payments-service 점검 가설: 반복 호출 또는 배치 작업 중복 실행. 런북이 제시하는 가능성이며 원인 확인은 필요합니다.\n- payments-service 점검 가설: 최근 배포의 영향. 런북이 제시하는 가능성이며 원인 확인은 필요합니다.\n- payments-service 점검 가설: 커넥션 풀 포화 또는 느린 쿼리·외부 호출의 영향. 런북이 제시하는 가능성이며 원인 확인은 필요합니다.\n- payments-service 점검 권고: get_monitoring_status로 CPU 사용률과 최근 배포/트래픽 변화 시점을 확인한다. [런북 cpu-spike 절차 1]\n- payments-service 점검 권고: 반복 호출, 배치 작업 중복 실행 같은 특정 요청 패턴이 원인인지 최근 로그에서 확인한다. [런북 cpu-spike 절차 2]\n- payments-service 점검 권고: get_monitoring_status로 p95 지연시간과 커넥션 풀 사용률을 확인한다. [런북 high-latency 절차 1]\n3) 미확인·근거\n- 근거 범위: 현재 조회한 상태·CPU·메모리와 알림 원문 및 런북입니다.\n- 미확보 자료: 시계열 지표·상세 로그·배포 이력·서비스 호출 관계입니다. 실제 원인과 추세는 확정하지 않았습니다.\n- 추가 원인 확인과 조치 후 결과 확인이 필요합니다.\n- Runbook: CPU 급증 대응 절차: data/runbooks/cpu-spike.md · runbook://incident-response/cpu-spike · 해시 30796f7b5c1d\n- Runbook: 응답 지연(High Latency) 대응 절차: data/runbooks/high-latency.md · runbook://incident-response/high-latency · 해시 0df4846e6699"
+    }
+  ],
+  "python_tests_passed": 76,
+  "ui_tests_passed": 5,
+  "real_api_examples": 4,
+  "manual_answer_quality": "not_independently_reviewed",
+  "before_after_performance": "not_measured"
+}
