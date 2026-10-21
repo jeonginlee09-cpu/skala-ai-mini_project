@@ -127,8 +127,17 @@ async def clarify_context_node(state: AgentState,deps: SupervisorDeps) -> dict:
 async def route_node(state: AgentState, deps: SupervisorDeps) -> dict:
     """Wave 5 — 모든 쿼리가 무거운 파이프라인을 탈 필요는 없다."""
     result, usage = await asyncio.to_thread(deps.fast_llm.route, _request_query(state))
+    result = dict(result)
+    model_route = result['route']
+    # The resolver only resolves operational references with known targets.
+    # Such a request needs fresh measurements even if the model calls it chat.
+    resolved = state.get('context_resolution', {}).get('status') == 'resolved'
+    if resolved:
+        result['route'] = 'incident'
     event = {"type": "RouteDecided", "route": result["route"],
              'tokens':usage.get('tokens'),'model':usage.get('model')}
+    if resolved and model_route != 'incident':
+        event.update(model_route=model_route, override_reason='resolved_operational_followup')
     return {"route": result["route"], "needs_analysis": result["needs_analysis"],
             "cost_usd": _cost(state, usage),
             "events": state.get("events", []) + [event]}

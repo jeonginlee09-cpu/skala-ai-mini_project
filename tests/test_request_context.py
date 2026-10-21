@@ -90,6 +90,27 @@ class FollowupGraphTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(deps.mcp.calls)
         self.assertEqual(deps.quality_llm.calls,0)
 
+    async def test_resolved_operational_reference_cannot_bypass_fresh_lookup_as_chat(self):
+        deps=self.deps()
+        original_route=deps.fast_llm.route
+        def mistaken_route(query):
+            _,usage=original_route(query)
+            return {'route':'chat','needs_analysis':True},usage
+        async def stale_chat(query,history,on_token=None):
+            return '과거 메모리 99%',{'usd':0}
+        deps.fast_llm.route=mistaken_route
+        deps.fast_llm.chat=stale_chat
+        state=initial_state('그 두 서비스의 메모리도 비교해줘','thread','route-guard',[
+            {'role':'user','content':'payments-service와 cache-service 상태를 비교해줘'},
+            {'role':'assistant','content':'과거 메모리 99%'}])
+        result=await graph.build_graph(deps).ainvoke(state)
+        self.assertEqual(result['route'],'incident')
+        self.assertEqual(dict(deps.mcp.calls),{'payments-service':1,'cache-service':1})
+        event=next(e for e in result['events'] if e['type']=='RouteDecided')
+        self.assertEqual(event['model_route'],'chat')
+        self.assertEqual(event['override_reason'],'resolved_operational_followup')
+        self.assertNotIn('과거 메모리 99%',result['final'])
+
     async def test_new_session_without_history_does_not_inherit_a_target(self):
         deps=self.deps()
         result=await graph.build_graph(deps).ainvoke(initial_state('그 서비스 상태 확인','other','isolated',[]))
