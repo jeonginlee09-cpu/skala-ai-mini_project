@@ -1,0 +1,502 @@
+[
+  {
+    "variant": "original",
+    "case_id": "Q01",
+    "question": "payments-service 결제 응답이 느려지고 CPU가 치솟았어요, 원인 확인해주세요",
+    "answer": "1) 모니터링 결과, payments-service의 상태가 저하되었으며 CPU 사용률이 91.0%로 높아졌고, 메모리 사용률은 55.0%로 확인되었습니다. 알림은 두 건 발생했으며, 'CPU 91% (threshold 80%)'와 'payments-service-3 instance responding slow'입니다.\n\n2) 최근 로그를 분석한 결과, 반복 호출이나 배치 작업 중복 실행과 같은 특정 요청 패턴은 발견되지 않았습니다.\n\n3) CPU 사용률이 90%를 넘고 지속되고 있으므로, 오토스케일링 그룹에서 인스턴스를 한 대 더 추가하여 부하를 분산시키는 조치를 권장합니다. 이후, 정상화가 이루어지면 프로파일링 결과를 바탕으로 핫스팟 코드를 식별하고 최적화 작업을 등록해야 합니다.",
+    "status": "ok",
+    "request_id": "cmp-original-Q01-r01",
+    "actual_targets": [
+      "payments-service"
+    ],
+    "actual_runbooks": [
+      "cpu-spike"
+    ],
+    "total_s": 5.427483583000139
+  },
+  {
+    "variant": "latest",
+    "case_id": "Q01",
+    "question": "payments-service 결제 응답이 느려지고 CPU가 치솟았어요, 원인 확인해주세요",
+    "answer": "실습 샘플 자료에 근거한 안내입니다. 실제 조치는 실행하지 않았습니다.\n1) 확인한 사실\n- payments-service 상태: degraded (현재 조회) [근거 cmp-latest-Q01-r01:observation:payments-service:status]\n- payments-service CPU: 91.0% (현재 조회) [근거 cmp-latest-Q01-r01:observation:payments-service:cpu_percent]\n- payments-service 메모리: 55.0% (현재 조회) [근거 cmp-latest-Q01-r01:observation:payments-service:memory_percent]\n- payments-service 알림 인용: CPU 91% (threshold 80%) (발생 시각 미확인) [근거 cmp-latest-Q01-r01:alert:payments-service:0]\n- payments-service 알림 인용: payments-service-3 instance responding slow (발생 시각 미확인) [근거 cmp-latest-Q01-r01:alert:payments-service:1]\n2) 원인 가설·권고\n- 현재값만으로 공통 원인·증가 추세는 확정할 수 없습니다. 시계열·배포·호출 관계 확인이 필요합니다.\n- payments-service 점검 가설: 반복 호출 또는 배치 작업 중복 실행. 런북이 제시하는 가능성이며 원인 확인은 필요합니다.\n- payments-service 점검 가설: 최근 배포의 영향. 런북이 제시하는 가능성이며 원인 확인은 필요합니다.\n- payments-service 점검 가설: 커넥션 풀 포화 또는 느린 쿼리·외부 호출의 영향. 런북이 제시하는 가능성이며 원인 확인은 필요합니다.\n- payments-service 점검 권고: get_monitoring_status로 CPU 사용률과 최근 배포/트래픽 변화 시점을 확인한다. [런북 cpu-spike 절차 1]\n- payments-service 점검 권고: 반복 호출, 배치 작업 중복 실행 같은 특정 요청 패턴이 원인인지 최근 로그에서 확인한다. [런북 cpu-spike 절차 2]\n- payments-service 점검 권고: get_monitoring_status로 p95 지연시간과 커넥션 풀 사용률을 확인한다. [런북 high-latency 절차 1]\n3) 미확인·근거\n- 근거 범위: 현재 조회한 상태·CPU·메모리와 알림 원문 및 런북입니다.\n- 미확보 자료: 시계열 지표·상세 로그·배포 이력·서비스 호출 관계입니다. 실제 원인과 추세는 확정하지 않았습니다.\n- 추가 원인 확인과 조치 후 결과 확인이 필요합니다.\n- Runbook: CPU 급증 대응 절차: data/runbooks/cpu-spike.md · runbook://incident-response/cpu-spike · 해시 30796f7b5c1d\n- Runbook: 응답 지연(High Latency) 대응 절차: data/runbooks/high-latency.md · runbook://incident-response/high-latency · 해시 0df4846e6699",
+    "status": "ok",
+    "request_id": "cmp-latest-Q01-r01",
+    "actual_targets": [
+      "payments-service"
+    ],
+    "actual_runbooks": [
+      "cpu-spike",
+      "high-latency"
+    ],
+    "total_s": 3.806897749993368
+  },
+  {
+    "variant": "latest",
+    "case_id": "Q02",
+    "question": "cache-service 메모리 사용률이 계속 올라가고 있어요",
+    "answer": "실습 샘플 자료에 근거한 안내입니다. 실제 조치는 실행하지 않았습니다.\n1) 확인한 사실\n- cache-service 상태: degraded (현재 조회) [근거 cmp-latest-Q02-r01:observation:cache-service:status]\n- cache-service CPU: 42.0% (현재 조회) [근거 cmp-latest-Q02-r01:observation:cache-service:cpu_percent]\n- cache-service 메모리: 89.0% (현재 조회) [근거 cmp-latest-Q02-r01:observation:cache-service:memory_percent]\n- cache-service 알림 인용: memory usage climbing steadily over 6h (발생 시각 미확인) [근거 cmp-latest-Q02-r01:alert:cache-service:0]\n- cache-service 알림 인용: heap near limit (발생 시각 미확인) [근거 cmp-latest-Q02-r01:alert:cache-service:1]\n2) 원인 가설·권고\n- 현재값만으로 공통 원인·증가 추세는 확정할 수 없습니다. 시계열·배포·호출 관계 확인이 필요합니다.\n- cache-service 점검 가설: 캐시 무제한 증가·객체 누적 또는 자원 미반환. 런북이 제시하는 가능성이며 원인 확인은 필요합니다.\n- cache-service 점검 권고: get_monitoring_status로 메모리 사용률 추세(시간에 따라 꾸준히 증가하는지)를 확인한다. [런북 memory-leak 절차 1]\n- cache-service 점검 권고: 힙 덤프 또는 프로파일링 도구로 어떤 객체가 계속 쌓이는지 확인한다. [런북 memory-leak 절차 3]\n- cache-service 점검 권고: 캐시 무제한 증가, 커넥션 미반환, 이벤트 리스너 중복 등록 같은 패턴이 최근 배포에 있었는지 점검한다. [런북 memory-leak 절차 4]\n3) 미확인·근거\n- 근거 범위: 현재 조회한 상태·CPU·메모리와 알림 원문 및 런북입니다.\n- 미확보 자료: 시계열 지표·상세 로그·배포 이력·서비스 호출 관계입니다. 실제 원인과 추세는 확정하지 않았습니다.\n- 추가 원인 확인과 조치 후 결과 확인이 필요합니다.\n- Runbook: 메모리 누수(Memory Leak) 대응 절차: data/runbooks/memory-leak.md · runbook://incident-response/memory-leak · 해시 085f00e9bba5",
+    "status": "ok",
+    "request_id": "cmp-latest-Q02-r01",
+    "actual_targets": [
+      "cache-service"
+    ],
+    "actual_runbooks": [
+      "memory-leak"
+    ],
+    "total_s": 4.0666992500046035
+  },
+  {
+    "variant": "original",
+    "case_id": "Q02",
+    "question": "cache-service 메모리 사용률이 계속 올라가고 있어요",
+    "answer": "1) 현재 cache-service의 메모리 사용률이 89.0%로 높으며, 메모리 사용이 6시간 동안 꾸준히 증가하고 있다는 알림이 있습니다. 이는 메모리 누수 가능성을 시사합니다.\n\n2) 메모리 사용률이 90%에 근접하므로, 서비스 중단을 방지하기 위해 해당 프로세스를 즉시 재시작해야 합니다. 이는 임시 조치임을 기록해두어야 합니다.\n\n3) 이후, 힙 덤프 또는 프로파일링 도구를 사용하여 어떤 객체가 계속 쌓이고 있는지 확인해야 합니다. 최근 배포에서 캐시 무제한 증가, 커넥션 미반환, 이벤트 리스너 중복 등록 같은 패턴이 있었는지 점검해야 합니다.\n\n4) 현재까지의 패턴 분석에서는 특이 패턴이 발견되지 않았습니다. 원인이 된 배포가 확인되면 롤백을 고려하고, 컨테이너 메모리 상한선을 재확인하여 재발 시 더 빨리 감지되도록 조정해야 합니다.",
+    "status": "ok",
+    "request_id": "cmp-original-Q02-r01",
+    "actual_targets": [
+      "cache-service"
+    ],
+    "actual_runbooks": [
+      "memory-leak"
+    ],
+    "total_s": 6.268804583000019
+  },
+  {
+    "variant": "original",
+    "case_id": "Q03",
+    "question": "log-service 디스크 공간이 부족하다는 알림이 왔어요",
+    "answer": "1) 모니터링 결과, log-service의 디스크 사용률이 95%로 임계 수준(90% 이상)을 초과하여 상태가 'degraded'로 나타났습니다.\n\n2) 즉시 조치로, 로그 파일, 임시 파일, 오래된 백업 등 안전하게 삭제 가능한 항목을 정리하여 디스크 여유 공간을 확보해야 합니다.\n\n3) 만약 특정 프로세스가 비정상적으로 로그를 쌓고 있다면, 로그 레벨을 낮추거나 로테이션 주기를 단축하여 로그 생성량을 줄여야 합니다. 임시 조치로도 부족할 경우, 볼륨을 확장하거나 추가 스토리지를 연결하는 방안을 고려해야 합니다. 정상화 후에는 로그 보존 정책과 디스크 사용률 알림 임계값을 재검토하여 조기에 감지될 수 있도록 조정해야 합니다.",
+    "status": "ok",
+    "request_id": "cmp-original-Q03-r01",
+    "actual_targets": [
+      "log-service"
+    ],
+    "actual_runbooks": [
+      "disk-full"
+    ],
+    "total_s": 4.389503832993796
+  },
+  {
+    "variant": "latest",
+    "case_id": "Q03",
+    "question": "log-service 디스크 공간이 부족하다는 알림이 왔어요",
+    "answer": "실습 샘플 자료에 근거한 안내입니다. 실제 조치는 실행하지 않았습니다.\n1) 확인한 사실\n- log-service 상태: degraded (현재 조회) [근거 cmp-latest-Q03-r01:observation:log-service:status]\n- log-service CPU: 20.0% (현재 조회) [근거 cmp-latest-Q03-r01:observation:log-service:cpu_percent]\n- log-service 메모리: 35.0% (현재 조회) [근거 cmp-latest-Q03-r01:observation:log-service:memory_percent]\n- log-service 알림 인용: disk usage 95% on /var/log (발생 시각 미확인) [근거 cmp-latest-Q03-r01:alert:log-service:0]\n- log-service 알림 인용: disk space low (발생 시각 미확인) [근거 cmp-latest-Q03-r01:alert:log-service:1]\n2) 원인 가설·권고\n- log-service 점검 가설: 특정 프로세스의 비정상적인 로그 누적. 런북이 제시하는 가능성이며 원인 확인은 필요합니다.\n- log-service 조건부 권고: 로그 파일, 임시 파일, 오래된 백업처럼 안전하게 지울 수 있는 항목부터 정리해 여유 공간을 즉시 확보한다. (조건: 현재 디스크 사용률 90% 이상; 판정=unknown) [런북 disk-full 절차 2]\n- log-service 조건부 권고: 특정 프로세스가 비정상적으로 로그를 쌓고 있다면 로그 레벨을 낮추거나 로테이션 주기를 단축한다. (조건: 특정 프로세스가 비정상 로그를 쌓는지; 판정=unknown) [런북 disk-full 절차 3]\n- log-service 조건부 권고: 임시 조치로도 부족하면 볼륨을 확장하거나 추가 스토리지를 연결한다. (조건: 임시 조치 후에도 공간이 부족한지; 판정=unknown) [런북 disk-full 절차 4]\n3) 미확인·근거\n- 근거 범위: 현재 조회한 상태·CPU·메모리와 알림 원문 및 런북입니다.\n- 미확보 자료: 시계열 지표·상세 로그·배포 이력·서비스 호출 관계입니다. 실제 원인과 추세는 확정하지 않았습니다.\n- 미확인: 현재 디스크 사용률 90% 이상\n- 미확인: 특정 프로세스가 비정상 로그를 쌓는지\n- 미확인: 임시 조치 후에도 공간이 부족한지\n- Runbook: 디스크 용량 부족 대응 절차: data/runbooks/disk-full.md · runbook://incident-response/disk-full · 해시 72b9d4f00649",
+    "status": "ok",
+    "request_id": "cmp-latest-Q03-r01",
+    "actual_targets": [
+      "log-service"
+    ],
+    "actual_runbooks": [
+      "disk-full"
+    ],
+    "total_s": 3.4852564579923637
+  },
+  {
+    "variant": "latest",
+    "case_id": "Q04",
+    "question": "gateway-service에서 payments-service로 가는 요청이 타임아웃 나고 있어요",
+    "answer": "실습 샘플 자료에 근거한 안내입니다. 실제 조치는 실행하지 않았습니다.\n1) 확인한 사실\n- gateway-service 상태: degraded (현재 조회) [근거 cmp-latest-Q04-r01:observation:gateway-service:status]\n- gateway-service CPU: 30.0% (현재 조회) [근거 cmp-latest-Q04-r01:observation:gateway-service:cpu_percent]\n- gateway-service 메모리: 45.0% (현재 조회) [근거 cmp-latest-Q04-r01:observation:gateway-service:memory_percent]\n- payments-service 상태: degraded (현재 조회) [근거 cmp-latest-Q04-r01:observation:payments-service:status]\n- payments-service CPU: 91.0% (현재 조회) [근거 cmp-latest-Q04-r01:observation:payments-service:cpu_percent]\n- payments-service 메모리: 55.0% (현재 조회) [근거 cmp-latest-Q04-r01:observation:payments-service:memory_percent]\n- gateway-service 알림 인용: upstream timeout to payments-service (504) (발생 시각 미확인) [근거 cmp-latest-Q04-r01:alert:gateway-service:0]\n- gateway-service 알림 인용: network packet loss 3% (발생 시각 미확인) [근거 cmp-latest-Q04-r01:alert:gateway-service:1]\n- payments-service 알림 인용: CPU 91% (threshold 80%) (발생 시각 미확인) [근거 cmp-latest-Q04-r01:alert:payments-service:0]\n- payments-service 알림 인용: payments-service-3 instance responding slow (발생 시각 미확인) [근거 cmp-latest-Q04-r01:alert:payments-service:1]\n2) 원인 가설·권고\n- 서비스 간 현재값 비교(코드): gateway-service: 상태=degraded, CPU 30.0%, 메모리 45.0%; payments-service: 상태=degraded, CPU 91.0%, 메모리 55.0%\n- 현재값만으로 공통 원인·증가 추세는 확정할 수 없습니다. 시계열·배포·호출 관계 확인이 필요합니다.\n- payments-service 점검 가설: 반복 호출 또는 배치 작업 중복 실행. 런북이 제시하는 가능성이며 원인 확인은 필요합니다.\n- payments-service 점검 가설: 최근 배포의 영향. 런북이 제시하는 가능성이며 원인 확인은 필요합니다.\n- gateway-service 점검 가설: DNS·방화벽·보안그룹 또는 로드밸런서 헬스체크 변경. 런북이 제시하는 가능성이며 원인 확인은 필요합니다.\n- payments-service 점검 권고: get_monitoring_status로 CPU 사용률과 최근 배포/트래픽 변화 시점을 확인한다. [런북 cpu-spike 절차 1]\n- payments-service 점검 권고: 반복 호출, 배치 작업 중복 실행 같은 특정 요청 패턴이 원인인지 최근 로그에서 확인한다. [런북 cpu-spike 절차 2]\n- gateway-service 점검 권고: get_monitoring_status로 어떤 시스템 간 호출에서 타임아웃이 발생하는지 확인한다. [런북 network-timeout 절차 1]\n- gateway-service 점검 권고: DNS 해석 실패, 방화벽/보안그룹 변경, 로드밸런서 헬스체크 실패 중 최근 변경 사항이 있었는지 점검한다. [런북 network-timeout 절차 2]\n3) 미확인·근거\n- 근거 범위: 현재 조회한 상태·CPU·메모리와 알림 원문 및 런북입니다.\n- 미확보 자료: 시계열 지표·상세 로그·배포 이력·서비스 호출 관계입니다. 실제 원인과 추세는 확정하지 않았습니다.\n- 추가 원인 확인과 조치 후 결과 확인이 필요합니다.\n- Runbook: CPU 급증 대응 절차: data/runbooks/cpu-spike.md · runbook://incident-response/cpu-spike · 해시 30796f7b5c1d\n- Runbook: 네트워크 타임아웃 대응 절차: data/runbooks/network-timeout.md · runbook://incident-response/network-timeout · 해시 ed68d1bc7751",
+    "status": "ok",
+    "request_id": "cmp-latest-Q04-r01",
+    "actual_targets": [
+      "gateway-service",
+      "payments-service"
+    ],
+    "actual_runbooks": [
+      "cpu-spike",
+      "network-timeout"
+    ],
+    "total_s": 4.627576124999905
+  },
+  {
+    "variant": "original",
+    "case_id": "Q04",
+    "question": "gateway-service에서 payments-service로 가는 요청이 타임아웃 나고 있어요",
+    "answer": "1) gateway-service에서 payments-service로의 요청 타임아웃 문제는 'upstream timeout to payments-service (504)'와 'network packet loss 3%' 알림으로 인해 발생하고 있습니다. 현재 gateway-service의 상태는 degraded이며, CPU 사용률은 30.0%, 메모리 사용률은 45.0%입니다.\n\n2) payments-service의 상태도 degraded로, CPU 사용률이 91.0%로 임계치인 80%를 초과하고 있습니다. 메모리 사용률은 55.0%이며, 'CPU 91% (threshold 80%)'와 'payments-service-3 instance responding slow' 알림이 발생하고 있습니다.\n\n3) 대응 절차로는 payments-service의 CPU 사용률이 90%를 넘고 지속되고 있으므로, 오토스케일링 그룹에서 인스턴스를 한 대 더 추가하여 부하를 분산시키는 것이 필요합니다. 이후 정상화되면 프로파일링 결과를 바탕으로 핫스팟 코드를 식별하고 최적화 작업을 등록해야 합니다.",
+    "status": "ok",
+    "request_id": "cmp-original-Q04-r01",
+    "actual_targets": [
+      "gateway-service",
+      "payments-service"
+    ],
+    "actual_runbooks": [
+      "cpu-spike"
+    ],
+    "total_s": 4.890465165997739
+  },
+  {
+    "variant": "original",
+    "case_id": "Q05",
+    "question": "web-01 CPU 급증, auth-service 커넥션 풀도 같이 확인해줘",
+    "answer": "1) web-01의 CPU 사용률은 34.0%로 정상 범위에 있으며, 상태는 'healthy'로 확인되었습니다. 따라서 web-01의 CPU 급증 문제는 발생하지 않았습니다.\n\n2) auth-service의 상태는 'degraded'로, CPU 사용률은 78.0%, 메모리 사용률은 61.0%입니다. 알림으로는 'p95 latency 2.4s (threshold 1.0s)'와 'connection pool 92% used'가 보고되었습니다.\n\n3) auth-service의 커넥션 풀 사용률이 92%로 높아, runbook에 따라 커넥션 풀 크기를 늘리거나 느린 쿼리/외부 호출에 타임아웃을 설정하는 조치가 필요합니다. 또한, p95 지연시간이 임계치(1.0s)를 초과하므로, 5분 내에 개선되지 않으면 캐시 계층 또는 읽기 복제본으로 트래픽을 분산하는 추가 조치를 고려해야 합니다.",
+    "status": "ok",
+    "request_id": "cmp-original-Q05-r01",
+    "actual_targets": [
+      "web-01",
+      "auth-service"
+    ],
+    "actual_runbooks": [
+      "high-latency"
+    ],
+    "total_s": 4.457054000013159
+  },
+  {
+    "variant": "latest",
+    "case_id": "Q05",
+    "question": "web-01 CPU 급증, auth-service 커넥션 풀도 같이 확인해줘",
+    "answer": "실습 샘플 자료에 근거한 안내입니다. 실제 조치는 실행하지 않았습니다.\n1) 확인한 사실\n- web-01 상태: healthy (현재 조회) [근거 cmp-latest-Q05-r01:observation:web-01:status]\n- web-01 CPU: 34.0% (현재 조회) [근거 cmp-latest-Q05-r01:observation:web-01:cpu_percent]\n- web-01 메모리: 48.0% (현재 조회) [근거 cmp-latest-Q05-r01:observation:web-01:memory_percent]\n- auth-service 상태: degraded (현재 조회) [근거 cmp-latest-Q05-r01:observation:auth-service:status]\n- auth-service CPU: 78.0% (현재 조회) [근거 cmp-latest-Q05-r01:observation:auth-service:cpu_percent]\n- auth-service 메모리: 61.0% (현재 조회) [근거 cmp-latest-Q05-r01:observation:auth-service:memory_percent]\n- auth-service 알림 인용: p95 latency 2.4s (threshold 1.0s) (발생 시각 미확인) [근거 cmp-latest-Q05-r01:alert:auth-service:0]\n- auth-service 알림 인용: connection pool 92% used (발생 시각 미확인) [근거 cmp-latest-Q05-r01:alert:auth-service:1]\n2) 원인 가설·권고\n- web-01 점검 가설: 반복 호출 또는 배치 작업 중복 실행. 런북이 제시하는 가능성이며 원인 확인은 필요합니다.\n- auth-service 점검 가설: 커넥션 풀 포화 또는 느린 쿼리·외부 호출의 영향. 런북이 제시하는 가능성이며 원인 확인은 필요합니다.\n- web-01 점검 권고: get_monitoring_status로 CPU 사용률과 최근 배포/트래픽 변화 시점을 확인한다. [런북 cpu-spike 절차 1]\n- web-01 점검 권고: 반복 호출, 배치 작업 중복 실행 같은 특정 요청 패턴이 원인인지 최근 로그에서 확인한다. [런북 cpu-spike 절차 2]\n- auth-service 점검 권고: get_monitoring_status로 p95 지연시간과 커넥션 풀 사용률을 확인한다. [런북 high-latency 절차 1]\n- auth-service 조건부 권고: 커넥션 풀 사용률이 90%를 넘으면 풀 크기를 늘리거나 느린 쿼리/외부 호출에 타임아웃을 건다. (조건: 현재 커넥션 풀 사용률 90% 초과; 판정=unknown) [런북 high-latency 절차 2]\n3) 미확인·근거\n- 근거 범위: 현재 조회한 상태·CPU·메모리와 알림 원문 및 런북입니다.\n- 미확보 자료: 시계열 지표·상세 로그·배포 이력·서비스 호출 관계입니다. 실제 원인과 추세는 확정하지 않았습니다.\n- 미확인: 현재 커넥션 풀 사용률 90% 초과\n- Runbook: CPU 급증 대응 절차: data/runbooks/cpu-spike.md · runbook://incident-response/cpu-spike · 해시 30796f7b5c1d\n- Runbook: 응답 지연(High Latency) 대응 절차: data/runbooks/high-latency.md · runbook://incident-response/high-latency · 해시 0df4846e6699",
+    "status": "ok",
+    "request_id": "cmp-latest-Q05-r01",
+    "actual_targets": [
+      "web-01",
+      "auth-service"
+    ],
+    "actual_runbooks": [
+      "cpu-spike",
+      "high-latency"
+    ],
+    "total_s": 3.846255625001504
+  },
+  {
+    "variant": "latest",
+    "case_id": "Q06",
+    "question": "payments-service랑 cache-service 둘 다 저하됐는데 공통 원인이 있는지 분석해줘",
+    "answer": "실습 샘플 자료에 근거한 안내입니다. 실제 조치는 실행하지 않았습니다.\n1) 확인한 사실\n- payments-service 상태: degraded (현재 조회) [근거 cmp-latest-Q06-r01:observation:payments-service:status]\n- payments-service CPU: 91.0% (현재 조회) [근거 cmp-latest-Q06-r01:observation:payments-service:cpu_percent]\n- payments-service 메모리: 55.0% (현재 조회) [근거 cmp-latest-Q06-r01:observation:payments-service:memory_percent]\n- cache-service 상태: degraded (현재 조회) [근거 cmp-latest-Q06-r01:observation:cache-service:status]\n- cache-service CPU: 42.0% (현재 조회) [근거 cmp-latest-Q06-r01:observation:cache-service:cpu_percent]\n- cache-service 메모리: 89.0% (현재 조회) [근거 cmp-latest-Q06-r01:observation:cache-service:memory_percent]\n- payments-service 알림 인용: CPU 91% (threshold 80%) (발생 시각 미확인) [근거 cmp-latest-Q06-r01:alert:payments-service:0]\n- payments-service 알림 인용: payments-service-3 instance responding slow (발생 시각 미확인) [근거 cmp-latest-Q06-r01:alert:payments-service:1]\n- cache-service 알림 인용: memory usage climbing steadily over 6h (발생 시각 미확인) [근거 cmp-latest-Q06-r01:alert:cache-service:0]\n- cache-service 알림 인용: heap near limit (발생 시각 미확인) [근거 cmp-latest-Q06-r01:alert:cache-service:1]\n2) 원인 가설·권고\n- 서비스 간 현재값 비교(코드): payments-service: 상태=degraded, CPU 91.0%, 메모리 55.0%; cache-service: 상태=degraded, CPU 42.0%, 메모리 89.0%\n- 현재값만으로 공통 원인·증가 추세는 확정할 수 없습니다. 시계열·배포·호출 관계 확인이 필요합니다.\n- cache-service 점검 가설: 캐시 무제한 증가·객체 누적 또는 자원 미반환. 런북이 제시하는 가능성이며 원인 확인은 필요합니다.\n- payments-service 점검 가설: 반복 호출 또는 배치 작업 중복 실행. 런북이 제시하는 가능성이며 원인 확인은 필요합니다.\n- cache-service 점검 권고: get_monitoring_status로 메모리 사용률 추세(시간에 따라 꾸준히 증가하는지)를 확인한다. [런북 memory-leak 절차 1]\n- cache-service 점검 권고: 힙 덤프 또는 프로파일링 도구로 어떤 객체가 계속 쌓이는지 확인한다. [런북 memory-leak 절차 3]\n- cache-service 점검 권고: 캐시 무제한 증가, 커넥션 미반환, 이벤트 리스너 중복 등록 같은 패턴이 최근 배포에 있었는지 점검한다. [런북 memory-leak 절차 4]\n- payments-service 점검 권고: get_monitoring_status로 CPU 사용률과 최근 배포/트래픽 변화 시점을 확인한다. [런북 cpu-spike 절차 1]\n- payments-service 점검 권고: 반복 호출, 배치 작업 중복 실행 같은 특정 요청 패턴이 원인인지 최근 로그에서 확인한다. [런북 cpu-spike 절차 2]\n3) 미확인·근거\n- 근거 범위: 현재 조회한 상태·CPU·메모리와 알림 원문 및 런북입니다.\n- 미확보 자료: 시계열 지표·상세 로그·배포 이력·서비스 호출 관계입니다. 실제 원인과 추세는 확정하지 않았습니다.\n- 추가 원인 확인과 조치 후 결과 확인이 필요합니다.\n- Runbook: 메모리 누수(Memory Leak) 대응 절차: data/runbooks/memory-leak.md · runbook://incident-response/memory-leak · 해시 085f00e9bba5\n- Runbook: CPU 급증 대응 절차: data/runbooks/cpu-spike.md · runbook://incident-response/cpu-spike · 해시 30796f7b5c1d",
+    "status": "ok",
+    "request_id": "cmp-latest-Q06-r01",
+    "actual_targets": [
+      "payments-service",
+      "cache-service"
+    ],
+    "actual_runbooks": [
+      "memory-leak",
+      "cpu-spike"
+    ],
+    "total_s": 4.492675250003231
+  },
+  {
+    "variant": "original",
+    "case_id": "Q06",
+    "question": "payments-service랑 cache-service 둘 다 저하됐는데 공통 원인이 있는지 분석해줘",
+    "answer": "1) payments-service는 CPU 사용률이 91.0%로 임계치(80%)를 초과하여 성능 저하가 발생하고 있으며, 인스턴스 응답 속도가 느려졌다는 알림이 있습니다. 이는 CPU 사용률 급증에 따른 문제로 보입니다.\n\n2) cache-service는 메모리 사용률이 89.0%로 높아져 성능 저하가 발생하고 있으며, 메모리 사용량이 6시간 동안 지속적으로 증가하고 있다는 알림이 있습니다. 이는 메모리 부족 문제로 보입니다.\n\n3) 두 서비스의 성능 저하 원인은 각각 CPU와 메모리 사용률 문제로, 공통 원인은 발견되지 않았습니다. payments-service는 CPU 사용률 급증에 대응하여 오토스케일링을 고려해야 하며, cache-service는 메모리 사용 최적화가 필요합니다.",
+    "status": "ok",
+    "request_id": "cmp-original-Q06-r01",
+    "actual_targets": [
+      "payments-service",
+      "cache-service"
+    ],
+    "actual_runbooks": [
+      "cpu-spike"
+    ],
+    "total_s": 5.299384500001906
+  },
+  {
+    "variant": "original",
+    "case_id": "Q07",
+    "question": "로그인 응답이 느려요, 원인 확인해주세요",
+    "answer": "1) 모니터링 결과 auth-service의 상태가 'degraded'로 확인되었으며, CPU 사용률은 78.0%, 메모리 사용률은 61.0%로 나타났습니다. 또한, 두 가지 알림이 발생했으며, 이는 'p95 latency 2.4s (threshold 1.0s)'와 'connection pool 92% used'입니다.\n\n2) Runbook에 따라, p95 지연시간이 2.4초로 임계치인 1.0초를 초과하고 있으며, 커넥션 풀 사용률이 92%로 90%를 넘고 있습니다. 따라서, 커넥션 풀 크기를 늘리거나 느린 쿼리/외부 호출에 타임아웃을 설정해야 합니다.\n\n3) 5분 내에 p95 지연시간이 임계치 아래로 내려오지 않을 경우, 캐시 계층 또는 읽기 복제본으로 트래픽을 분산하여 문제를 해결해야 합니다. 이후, 정상화가 되면 느린 쿼리 로그를 분석하여 근본 원인을 문서화하고 후속 최적화 티켓을 등록해야 합니다.",
+    "status": "ok",
+    "request_id": "cmp-original-Q07-r01",
+    "actual_targets": [
+      "auth-service"
+    ],
+    "actual_runbooks": [
+      "high-latency"
+    ],
+    "total_s": 4.886720624999725
+  },
+  {
+    "variant": "latest",
+    "case_id": "Q07",
+    "question": "로그인 응답이 느려요, 원인 확인해주세요",
+    "answer": "실습 샘플 자료에 근거한 안내입니다. 실제 조치는 실행하지 않았습니다.\n1) 확인한 사실\n- auth-service 상태: degraded (현재 조회) [근거 cmp-latest-Q07-r01:observation:auth-service:status]\n- auth-service CPU: 78.0% (현재 조회) [근거 cmp-latest-Q07-r01:observation:auth-service:cpu_percent]\n- auth-service 메모리: 61.0% (현재 조회) [근거 cmp-latest-Q07-r01:observation:auth-service:memory_percent]\n- auth-service 알림 인용: p95 latency 2.4s (threshold 1.0s) (발생 시각 미확인) [근거 cmp-latest-Q07-r01:alert:auth-service:0]\n- auth-service 알림 인용: connection pool 92% used (발생 시각 미확인) [근거 cmp-latest-Q07-r01:alert:auth-service:1]\n2) 원인 가설·권고\n- auth-service 점검 가설: 커넥션 풀 포화 또는 느린 쿼리·외부 호출의 영향. 런북이 제시하는 가능성이며 원인 확인은 필요합니다.\n- auth-service 점검 권고: get_monitoring_status로 p95 지연시간과 커넥션 풀 사용률을 확인한다. [런북 high-latency 절차 1]\n- auth-service 조건부 권고: 커넥션 풀 사용률이 90%를 넘으면 풀 크기를 늘리거나 느린 쿼리/외부 호출에 타임아웃을 건다. (조건: 현재 커넥션 풀 사용률 90% 초과; 판정=unknown) [런북 high-latency 절차 2]\n- auth-service 조건부 권고: 5분 내 p95가 임계치(1.0s) 아래로 내려오지 않으면 캐시 계층 또는 읽기 복제본으로 트래픽을 분산한다. (조건: 5분 안에 p95가 임계치 아래로 회복되지 않았는지; 판정=unknown) [런북 high-latency 절차 4]\n3) 미확인·근거\n- 근거 범위: 현재 조회한 상태·CPU·메모리와 알림 원문 및 런북입니다.\n- 미확보 자료: 시계열 지표·상세 로그·배포 이력·서비스 호출 관계입니다. 실제 원인과 추세는 확정하지 않았습니다.\n- 미확인: 현재 커넥션 풀 사용률 90% 초과\n- 미확인: 5분 안에 p95가 임계치 아래로 회복되지 않았는지\n- Runbook: 응답 지연(High Latency) 대응 절차: data/runbooks/high-latency.md · runbook://incident-response/high-latency · 해시 0df4846e6699",
+    "status": "ok",
+    "request_id": "cmp-latest-Q07-r01",
+    "actual_targets": [
+      "auth-service"
+    ],
+    "actual_runbooks": [
+      "high-latency"
+    ],
+    "total_s": 3.073140708002029
+  },
+  {
+    "variant": "latest",
+    "case_id": "Q08",
+    "question": "billing-service 응답이 느려요",
+    "answer": "실습 샘플 자료에 근거한 안내입니다. 실제 조치는 실행하지 않았습니다.\n1) 확인한 사실\n- auth-service 상태: degraded (현재 조회) [근거 cmp-latest-Q08-r01:observation:auth-service:status]\n- auth-service CPU: 78.0% (현재 조회) [근거 cmp-latest-Q08-r01:observation:auth-service:cpu_percent]\n- auth-service 메모리: 61.0% (현재 조회) [근거 cmp-latest-Q08-r01:observation:auth-service:memory_percent]\n- auth-service 알림 인용: p95 latency 2.4s (threshold 1.0s) (발생 시각 미확인) [근거 cmp-latest-Q08-r01:alert:auth-service:0]\n- auth-service 알림 인용: connection pool 92% used (발생 시각 미확인) [근거 cmp-latest-Q08-r01:alert:auth-service:1]\n2) 원인 가설·권고\n- auth-service 점검 가설: 커넥션 풀 포화 또는 느린 쿼리·외부 호출의 영향. 런북이 제시하는 가능성이며 원인 확인은 필요합니다.\n- auth-service 점검 권고: get_monitoring_status로 p95 지연시간과 커넥션 풀 사용률을 확인한다. [런북 high-latency 절차 1]\n- auth-service 조건부 권고: 커넥션 풀 사용률이 90%를 넘으면 풀 크기를 늘리거나 느린 쿼리/외부 호출에 타임아웃을 건다. (조건: 현재 커넥션 풀 사용률 90% 초과; 판정=unknown) [런북 high-latency 절차 2]\n3) 미확인·근거\n- 근거 범위: 현재 조회한 상태·CPU·메모리와 알림 원문 및 런북입니다.\n- 미확보 자료: 시계열 지표·상세 로그·배포 이력·서비스 호출 관계입니다. 실제 원인과 추세는 확정하지 않았습니다.\n- 미확인: 현재 커넥션 풀 사용률 90% 초과\n- Runbook: 응답 지연(High Latency) 대응 절차: data/runbooks/high-latency.md · runbook://incident-response/high-latency · 해시 0df4846e6699",
+    "status": "ok",
+    "request_id": "cmp-latest-Q08-r01",
+    "actual_targets": [
+      "auth-service"
+    ],
+    "actual_runbooks": [
+      "high-latency"
+    ],
+    "total_s": 4.431491000010283
+  },
+  {
+    "variant": "original",
+    "case_id": "Q08",
+    "question": "billing-service 응답이 느려요",
+    "answer": "1) 모니터링 결과, auth-service의 p95 지연시간이 2.4초로 임계치인 1.0초를 초과하고 있으며, 커넥션 풀 사용률이 92%로 확인되었습니다.\n\n2) Runbook에 따라, 커넥션 풀 사용률이 90%를 넘었으므로 풀 크기를 늘리거나 느린 쿼리/외부 호출에 타임아웃을 설정해야 합니다.\n\n3) 5분 내에 p95 지연시간이 임계치 아래로 내려오지 않을 경우, 캐시 계층 또는 읽기 복제본으로 트래픽을 분산하는 조치를 고려해야 합니다. 이후, 정상화되면 느린 쿼리 로그를 분석하여 근본 원인을 문서화하고 최적화 티켓을 등록해야 합니다.",
+    "status": "ok",
+    "request_id": "cmp-original-Q08-r01",
+    "actual_targets": [
+      "auth-service"
+    ],
+    "actual_runbooks": [
+      "high-latency"
+    ],
+    "total_s": 4.808933792010066
+  },
+  {
+    "variant": "original",
+    "case_id": "Q09",
+    "question": "안녕, 너는 누구야?",
+    "answer": "안녕하세요! 저는 당신의 비서입니다. 도움이 필요하시면 말씀해 주세요.",
+    "status": "ok",
+    "request_id": "cmp-original-Q09-r01",
+    "actual_targets": [],
+    "actual_runbooks": [],
+    "total_s": 1.7313437919947319
+  },
+  {
+    "variant": "latest",
+    "case_id": "Q09",
+    "question": "안녕, 너는 누구야?",
+    "answer": "안녕하세요! 저는 당신의 비서입니다. 도움이 필요하시면 말씀해 주세요.",
+    "status": "ok",
+    "request_id": "cmp-latest-Q09-r01",
+    "actual_targets": [],
+    "actual_runbooks": [],
+    "total_s": 1.7365811659983592
+  },
+  {
+    "variant": "latest",
+    "case_id": "Q10A",
+    "question": "제 이름은 민수입니다",
+    "answer": "안녕하세요, 민수님! 어떻게 도와드릴까요?",
+    "status": "ok",
+    "request_id": "cmp-latest-Q10A-r01",
+    "actual_targets": [],
+    "actual_runbooks": [],
+    "total_s": 1.868030166006065
+  },
+  {
+    "variant": "original",
+    "case_id": "Q10A",
+    "question": "제 이름은 민수입니다",
+    "answer": "안녕하세요, 민수님! 어떻게 도와드릴까요?",
+    "status": "ok",
+    "request_id": "cmp-original-Q10A-r01",
+    "actual_targets": [],
+    "actual_runbooks": [],
+    "total_s": 1.9977127080055652
+  },
+  {
+    "variant": "original",
+    "case_id": "Q10B",
+    "question": "제 이름이 뭐였죠?",
+    "answer": "민수님입니다!",
+    "status": "ok",
+    "request_id": "cmp-original-Q10B-r01",
+    "actual_targets": [],
+    "actual_runbooks": [],
+    "total_s": 1.5465790000016568
+  },
+  {
+    "variant": "latest",
+    "case_id": "Q10B",
+    "question": "제 이름이 뭐였죠?",
+    "answer": "민수님입니다.",
+    "status": "ok",
+    "request_id": "cmp-latest-Q10B-r01",
+    "actual_targets": [],
+    "actual_runbooks": [],
+    "total_s": 1.5486462080007186
+  },
+  {
+    "case_id": "F01",
+    "question": "payments-service CPU 상태를 확인해줘",
+    "passed": true,
+    "checks": {
+      "completed": true,
+      "targets": true
+    },
+    "actual_targets": [
+      "payments-service"
+    ],
+    "actual_runbooks": [
+      "cpu-spike"
+    ],
+    "seconds": 4.6451807920093415,
+    "answer": "실습 샘플 자료에 근거한 안내입니다. 실제 조치는 실행하지 않았습니다.\n1) 확인한 사실\n- payments-service 상태: degraded (현재 조회) [근거 cmp-latest-F01-r01:observation:payments-service:status]\n- payments-service CPU: 91.0% (현재 조회) [근거 cmp-latest-F01-r01:observation:payments-service:cpu_percent]\n- payments-service 메모리: 55.0% (현재 조회) [근거 cmp-latest-F01-r01:observation:payments-service:memory_percent]\n- payments-service 알림 인용: CPU 91% (threshold 80%) (발생 시각 미확인) [근거 cmp-latest-F01-r01:alert:payments-service:0]\n- payments-service 알림 인용: payments-service-3 instance responding slow (발생 시각 미확인) [근거 cmp-latest-F01-r01:alert:payments-service:1]\n2) 원인 가설·권고\n- payments-service 점검 가설: 반복 호출 또는 배치 작업 중복 실행. 런북이 제시하는 가능성이며 원인 확인은 필요합니다.\n- payments-service 점검 가설: 최근 배포의 영향. 런북이 제시하는 가능성이며 원인 확인은 필요합니다.\n- payments-service 점검 권고: get_monitoring_status로 CPU 사용률과 최근 배포/트래픽 변화 시점을 확인한다. [런북 cpu-spike 절차 1]\n- payments-service 점검 권고: 반복 호출, 배치 작업 중복 실행 같은 특정 요청 패턴이 원인인지 최근 로그에서 확인한다. [런북 cpu-spike 절차 2]\n- payments-service 조건부 권고: CPU가 90%를 넘고 지속되면 해당 인스턴스를 오토스케일링 그룹에서 한 대 더 띄워 부하를 분산한다. (조건: CPU 사용률 90% 초과 / CPU가 높은 상태로 지속되는지; 판정=unknown) [런북 cpu-spike 절차 3]\n3) 미확인·근거\n- 근거 범위: 현재 조회한 상태·CPU·메모리와 알림 원문 및 런북입니다.\n- 미확보 자료: 시계열 지표·상세 로그·배포 이력·서비스 호출 관계입니다. 실제 원인과 추세는 확정하지 않았습니다.\n- 미확인: CPU가 높은 상태로 지속되는지\n- Runbook: CPU 급증 대응 절차: data/runbooks/cpu-spike.md · runbook://incident-response/cpu-spike · 해시 30796f7b5c1d",
+    "request_id": "cmp-latest-F01-r01"
+  },
+  {
+    "case_id": "F02",
+    "question": "그 서비스의 메모리도 확인해줘",
+    "passed": true,
+    "checks": {
+      "completed": true,
+      "targets": true,
+      "context": true
+    },
+    "actual_targets": [
+      "payments-service"
+    ],
+    "actual_runbooks": [
+      "cpu-spike",
+      "memory-leak"
+    ],
+    "seconds": 5.2645662919967435,
+    "answer": "실습 샘플 자료에 근거한 안내입니다. 실제 조치는 실행하지 않았습니다.\n1) 확인한 사실\n- payments-service 상태: degraded (현재 조회) [근거 cmp-latest-F02-r01:observation:payments-service:status]\n- payments-service CPU: 91.0% (현재 조회) [근거 cmp-latest-F02-r01:observation:payments-service:cpu_percent]\n- payments-service 메모리: 55.0% (현재 조회) [근거 cmp-latest-F02-r01:observation:payments-service:memory_percent]\n- payments-service 알림 인용: CPU 91% (threshold 80%) (발생 시각 미확인) [근거 cmp-latest-F02-r01:alert:payments-service:0]\n- payments-service 알림 인용: payments-service-3 instance responding slow (발생 시각 미확인) [근거 cmp-latest-F02-r01:alert:payments-service:1]\n2) 원인 가설·권고\n- payments-service 점검 가설: 캐시 무제한 증가·객체 누적 또는 자원 미반환. 런북이 제시하는 가능성이며 원인 확인은 필요합니다.\n- payments-service 점검 권고: get_monitoring_status로 메모리 사용률 추세(시간에 따라 꾸준히 증가하는지)를 확인한다. [런북 memory-leak 절차 1]\n- payments-service 점검 권고: 힙 덤프 또는 프로파일링 도구로 어떤 객체가 계속 쌓이는지 확인한다. [런북 memory-leak 절차 3]\n- payments-service 점검 권고: 캐시 무제한 증가, 커넥션 미반환, 이벤트 리스너 중복 등록 같은 패턴이 최근 배포에 있었는지 점검한다. [런북 memory-leak 절차 4]\n3) 미확인·근거\n- 근거 범위: 현재 조회한 상태·CPU·메모리와 알림 원문 및 런북입니다.\n- 미확보 자료: 시계열 지표·상세 로그·배포 이력·서비스 호출 관계입니다. 실제 원인과 추세는 확정하지 않았습니다.\n- 추가 원인 확인과 조치 후 결과 확인이 필요합니다.\n- Runbook: 메모리 누수(Memory Leak) 대응 절차: data/runbooks/memory-leak.md · runbook://incident-response/memory-leak · 해시 085f00e9bba5",
+    "request_id": "cmp-latest-F02-r01"
+  },
+  {
+    "case_id": "F03",
+    "question": "cache-service 메모리 상태를 확인해줘",
+    "passed": true,
+    "checks": {
+      "completed": true,
+      "targets": true,
+      "context": true
+    },
+    "actual_targets": [
+      "cache-service"
+    ],
+    "actual_runbooks": [
+      "memory-leak"
+    ],
+    "seconds": 5.949534999992466,
+    "answer": "실습 샘플 자료에 근거한 안내입니다. 실제 조치는 실행하지 않았습니다.\n1) 확인한 사실\n- cache-service 상태: degraded (현재 조회) [근거 cmp-latest-F03-r01:observation:cache-service:status]\n- cache-service CPU: 42.0% (현재 조회) [근거 cmp-latest-F03-r01:observation:cache-service:cpu_percent]\n- cache-service 메모리: 89.0% (현재 조회) [근거 cmp-latest-F03-r01:observation:cache-service:memory_percent]\n- cache-service 알림 인용: memory usage climbing steadily over 6h (발생 시각 미확인) [근거 cmp-latest-F03-r01:alert:cache-service:0]\n- cache-service 알림 인용: heap near limit (발생 시각 미확인) [근거 cmp-latest-F03-r01:alert:cache-service:1]\n2) 원인 가설·권고\n- cache-service 점검 가설: 캐시 무제한 증가·객체 누적 또는 자원 미반환. 런북이 제시하는 가능성이며 원인 확인은 필요합니다.\n- cache-service 점검 권고: get_monitoring_status로 메모리 사용률 추세(시간에 따라 꾸준히 증가하는지)를 확인한다. [런북 memory-leak 절차 1]\n- cache-service 점검 권고: 힙 덤프 또는 프로파일링 도구로 어떤 객체가 계속 쌓이는지 확인한다. [런북 memory-leak 절차 3]\n- cache-service 점검 권고: 캐시 무제한 증가, 커넥션 미반환, 이벤트 리스너 중복 등록 같은 패턴이 최근 배포에 있었는지 점검한다. [런북 memory-leak 절차 4]\n3) 미확인·근거\n- 근거 범위: 현재 조회한 상태·CPU·메모리와 알림 원문 및 런북입니다.\n- 미확보 자료: 시계열 지표·상세 로그·배포 이력·서비스 호출 관계입니다. 실제 원인과 추세는 확정하지 않았습니다.\n- 추가 원인 확인과 조치 후 결과 확인이 필요합니다.\n- Runbook: 메모리 누수(Memory Leak) 대응 절차: data/runbooks/memory-leak.md · runbook://incident-response/memory-leak · 해시 085f00e9bba5",
+    "request_id": "cmp-latest-F03-r01"
+  },
+  {
+    "case_id": "F04",
+    "question": "payments-service와 cache-service 상태를 비교해줘",
+    "passed": true,
+    "checks": {
+      "completed": true,
+      "targets": true
+    },
+    "actual_targets": [
+      "payments-service",
+      "cache-service"
+    ],
+    "actual_runbooks": [
+      "memory-leak",
+      "cpu-spike"
+    ],
+    "seconds": 5.6949271250050515,
+    "answer": "실습 샘플 자료에 근거한 안내입니다. 실제 조치는 실행하지 않았습니다.\n1) 확인한 사실\n- payments-service 상태: degraded (현재 조회) [근거 cmp-latest-F04-r01:observation:payments-service:status]\n- payments-service CPU: 91.0% (현재 조회) [근거 cmp-latest-F04-r01:observation:payments-service:cpu_percent]\n- payments-service 메모리: 55.0% (현재 조회) [근거 cmp-latest-F04-r01:observation:payments-service:memory_percent]\n- cache-service 상태: degraded (현재 조회) [근거 cmp-latest-F04-r01:observation:cache-service:status]\n- cache-service CPU: 42.0% (현재 조회) [근거 cmp-latest-F04-r01:observation:cache-service:cpu_percent]\n- cache-service 메모리: 89.0% (현재 조회) [근거 cmp-latest-F04-r01:observation:cache-service:memory_percent]\n- payments-service 알림 인용: CPU 91% (threshold 80%) (발생 시각 미확인) [근거 cmp-latest-F04-r01:alert:payments-service:0]\n- payments-service 알림 인용: payments-service-3 instance responding slow (발생 시각 미확인) [근거 cmp-latest-F04-r01:alert:payments-service:1]\n- cache-service 알림 인용: memory usage climbing steadily over 6h (발생 시각 미확인) [근거 cmp-latest-F04-r01:alert:cache-service:0]\n- cache-service 알림 인용: heap near limit (발생 시각 미확인) [근거 cmp-latest-F04-r01:alert:cache-service:1]\n2) 원인 가설·권고\n- cache-service 점검 가설: 캐시 무제한 증가·객체 누적 또는 자원 미반환. 런북이 제시하는 가능성이며 원인 확인은 필요합니다.\n- payments-service 점검 가설: 반복 호출 또는 배치 작업 중복 실행. 런북이 제시하는 가능성이며 원인 확인은 필요합니다.\n- payments-service 점검 가설: 최근 배포의 영향. 런북이 제시하는 가능성이며 원인 확인은 필요합니다.\n- cache-service 점검 권고: get_monitoring_status로 메모리 사용률 추세(시간에 따라 꾸준히 증가하는지)를 확인한다. [런북 memory-leak 절차 1]\n- cache-service 점검 권고: 힙 덤프 또는 프로파일링 도구로 어떤 객체가 계속 쌓이는지 확인한다. [런북 memory-leak 절차 3]\n- cache-service 점검 권고: 캐시 무제한 증가, 커넥션 미반환, 이벤트 리스너 중복 등록 같은 패턴이 최근 배포에 있었는지 점검한다. [런북 memory-leak 절차 4]\n- payments-service 점검 권고: get_monitoring_status로 CPU 사용률과 최근 배포/트래픽 변화 시점을 확인한다. [런북 cpu-spike 절차 1]\n- payments-service 점검 권고: 반복 호출, 배치 작업 중복 실행 같은 특정 요청 패턴이 원인인지 최근 로그에서 확인한다. [런북 cpu-spike 절차 2]\n3) 미확인·근거\n- 근거 범위: 현재 조회한 상태·CPU·메모리와 알림 원문 및 런북입니다.\n- 미확보 자료: 시계열 지표·상세 로그·배포 이력·서비스 호출 관계입니다. 실제 원인과 추세는 확정하지 않았습니다.\n- 추가 원인 확인과 조치 후 결과 확인이 필요합니다.\n- Runbook: 메모리 누수(Memory Leak) 대응 절차: data/runbooks/memory-leak.md · runbook://incident-response/memory-leak · 해시 085f00e9bba5\n- Runbook: CPU 급증 대응 절차: data/runbooks/cpu-spike.md · runbook://incident-response/cpu-spike · 해시 30796f7b5c1d",
+    "request_id": "cmp-latest-F04-r01"
+  },
+  {
+    "case_id": "F05",
+    "question": "그 서비스 상태도 확인해줘",
+    "passed": true,
+    "checks": {
+      "completed": true,
+      "targets": true,
+      "context": true,
+      "clarifies_without_monitoring": true
+    },
+    "actual_targets": [],
+    "actual_runbooks": [],
+    "seconds": 0.009208791991113685,
+    "answer": "어느 서비스를 확인할까요? 대상 서비스명을 알려주세요. (payments-service / cache-service)",
+    "request_id": "cmp-latest-F05-r01"
+  },
+  {
+    "case_id": "F06",
+    "question": "그 두 서비스의 메모리도 비교해줘",
+    "passed": true,
+    "checks": {
+      "completed": true,
+      "targets": true,
+      "context": true
+    },
+    "actual_targets": [
+      "payments-service",
+      "cache-service"
+    ],
+    "actual_runbooks": [
+      "memory-leak",
+      "cpu-spike"
+    ],
+    "seconds": 6.300033832987538,
+    "answer": "실습 샘플 자료에 근거한 안내입니다. 실제 조치는 실행하지 않았습니다.\n1) 확인한 사실\n- payments-service 상태: degraded (현재 조회) [근거 cmp-latest-F06-r01:observation:payments-service:status]\n- payments-service CPU: 91.0% (현재 조회) [근거 cmp-latest-F06-r01:observation:payments-service:cpu_percent]\n- payments-service 메모리: 55.0% (현재 조회) [근거 cmp-latest-F06-r01:observation:payments-service:memory_percent]\n- cache-service 상태: degraded (현재 조회) [근거 cmp-latest-F06-r01:observation:cache-service:status]\n- cache-service CPU: 42.0% (현재 조회) [근거 cmp-latest-F06-r01:observation:cache-service:cpu_percent]\n- cache-service 메모리: 89.0% (현재 조회) [근거 cmp-latest-F06-r01:observation:cache-service:memory_percent]\n- payments-service 알림 인용: CPU 91% (threshold 80%) (발생 시각 미확인) [근거 cmp-latest-F06-r01:alert:payments-service:0]\n- payments-service 알림 인용: payments-service-3 instance responding slow (발생 시각 미확인) [근거 cmp-latest-F06-r01:alert:payments-service:1]\n- cache-service 알림 인용: memory usage climbing steadily over 6h (발생 시각 미확인) [근거 cmp-latest-F06-r01:alert:cache-service:0]\n- cache-service 알림 인용: heap near limit (발생 시각 미확인) [근거 cmp-latest-F06-r01:alert:cache-service:1]\n2) 원인 가설·권고\n- cache-service 점검 가설: 캐시 무제한 증가·객체 누적 또는 자원 미반환. 런북이 제시하는 가능성이며 원인 확인은 필요합니다.\n- payments-service 점검 가설: 반복 호출 또는 배치 작업 중복 실행. 런북이 제시하는 가능성이며 원인 확인은 필요합니다.\n- payments-service 점검 가설: 최근 배포의 영향. 런북이 제시하는 가능성이며 원인 확인은 필요합니다.\n- cache-service 점검 권고: get_monitoring_status로 메모리 사용률 추세(시간에 따라 꾸준히 증가하는지)를 확인한다. [런북 memory-leak 절차 1]\n- cache-service 점검 권고: 힙 덤프 또는 프로파일링 도구로 어떤 객체가 계속 쌓이는지 확인한다. [런북 memory-leak 절차 3]\n- cache-service 점검 권고: 캐시 무제한 증가, 커넥션 미반환, 이벤트 리스너 중복 등록 같은 패턴이 최근 배포에 있었는지 점검한다. [런북 memory-leak 절차 4]\n- payments-service 점검 권고: get_monitoring_status로 CPU 사용률과 최근 배포/트래픽 변화 시점을 확인한다. [런북 cpu-spike 절차 1]\n- payments-service 점검 권고: 반복 호출, 배치 작업 중복 실행 같은 특정 요청 패턴이 원인인지 최근 로그에서 확인한다. [런북 cpu-spike 절차 2]\n3) 미확인·근거\n- 근거 범위: 현재 조회한 상태·CPU·메모리와 알림 원문 및 런북입니다.\n- 미확보 자료: 시계열 지표·상세 로그·배포 이력·서비스 호출 관계입니다. 실제 원인과 추세는 확정하지 않았습니다.\n- 추가 원인 확인과 조치 후 결과 확인이 필요합니다.\n- Runbook: 메모리 누수(Memory Leak) 대응 절차: data/runbooks/memory-leak.md · runbook://incident-response/memory-leak · 해시 085f00e9bba5\n- Runbook: CPU 급증 대응 절차: data/runbooks/cpu-spike.md · runbook://incident-response/cpu-spike · 해시 30796f7b5c1d",
+    "request_id": "cmp-latest-F06-r01"
+  },
+  {
+    "case_id": "F07",
+    "question": "그 서비스 상태도 확인해줘",
+    "passed": true,
+    "checks": {
+      "completed": true,
+      "targets": true,
+      "context": true,
+      "clarifies_without_monitoring": true
+    },
+    "actual_targets": [],
+    "actual_runbooks": [],
+    "seconds": 0.009319749995484017,
+    "answer": "어느 서비스를 확인할까요? 대상 서비스명을 알려주세요. (예: payments-service)",
+    "request_id": "cmp-latest-F07-r01"
+  },
+  {
+    "case_id": "F08",
+    "question": "payments-service CPU 급증, cache-service 메모리 증가, log-service 디스크 부족을 각각 확인해줘",
+    "passed": true,
+    "checks": {
+      "completed": true,
+      "targets": true,
+      "runbooks": true
+    },
+    "actual_targets": [
+      "payments-service",
+      "cache-service",
+      "log-service"
+    ],
+    "actual_runbooks": [
+      "memory-leak",
+      "cpu-spike",
+      "disk-full"
+    ],
+    "seconds": 7.502572166005848,
+    "answer": "실습 샘플 자료에 근거한 안내입니다. 실제 조치는 실행하지 않았습니다.\n1) 확인한 사실\n- payments-service 상태: degraded (현재 조회) [근거 cmp-latest-F08-r01:observation:payments-service:status]\n- payments-service CPU: 91.0% (현재 조회) [근거 cmp-latest-F08-r01:observation:payments-service:cpu_percent]\n- payments-service 메모리: 55.0% (현재 조회) [근거 cmp-latest-F08-r01:observation:payments-service:memory_percent]\n- cache-service 상태: degraded (현재 조회) [근거 cmp-latest-F08-r01:observation:cache-service:status]\n- cache-service CPU: 42.0% (현재 조회) [근거 cmp-latest-F08-r01:observation:cache-service:cpu_percent]\n- cache-service 메모리: 89.0% (현재 조회) [근거 cmp-latest-F08-r01:observation:cache-service:memory_percent]\n- log-service 상태: degraded (현재 조회) [근거 cmp-latest-F08-r01:observation:log-service:status]\n- log-service CPU: 20.0% (현재 조회) [근거 cmp-latest-F08-r01:observation:log-service:cpu_percent]\n- log-service 메모리: 35.0% (현재 조회) [근거 cmp-latest-F08-r01:observation:log-service:memory_percent]\n- payments-service 알림 인용: CPU 91% (threshold 80%) (발생 시각 미확인) [근거 cmp-latest-F08-r01:alert:payments-service:0]\n- payments-service 알림 인용: payments-service-3 instance responding slow (발생 시각 미확인) [근거 cmp-latest-F08-r01:alert:payments-service:1]\n- cache-service 알림 인용: memory usage climbing steadily over 6h (발생 시각 미확인) [근거 cmp-latest-F08-r01:alert:cache-service:0]\n- cache-service 알림 인용: heap near limit (발생 시각 미확인) [근거 cmp-latest-F08-r01:alert:cache-service:1]\n- log-service 알림 인용: disk usage 95% on /var/log (발생 시각 미확인) [근거 cmp-latest-F08-r01:alert:log-service:0]\n- log-service 알림 인용: disk space low (발생 시각 미확인) [근거 cmp-latest-F08-r01:alert:log-service:1]\n2) 원인 가설·권고\n- 서비스 간 현재값 비교(코드): payments-service: 상태=degraded, CPU 91.0%, 메모리 55.0%; cache-service: 상태=degraded, CPU 42.0%, 메모리 89.0%; log-service: 상태=degraded, CPU 20.0%, 메모리 35.0%\n- 현재값만으로 공통 원인·증가 추세는 확정할 수 없습니다. 시계열·배포·호출 관계 확인이 필요합니다.\n- cache-service 점검 가설: 캐시 무제한 증가·객체 누적 또는 자원 미반환. 런북이 제시하는 가능성이며 원인 확인은 필요합니다.\n- payments-service 점검 가설: 반복 호출 또는 배치 작업 중복 실행. 런북이 제시하는 가능성이며 원인 확인은 필요합니다.\n- payments-service 점검 가설: 최근 배포의 영향. 런북이 제시하는 가능성이며 원인 확인은 필요합니다.\n- log-service 점검 가설: 특정 프로세스의 비정상적인 로그 누적. 런북이 제시하는 가능성이며 원인 확인은 필요합니다.\n- cache-service 점검 권고: get_monitoring_status로 메모리 사용률 추세(시간에 따라 꾸준히 증가하는지)를 확인한다. [런북 memory-leak 절차 1]\n- cache-service 점검 권고: 힙 덤프 또는 프로파일링 도구로 어떤 객체가 계속 쌓이는지 확인한다. [런북 memory-leak 절차 3]\n- cache-service 점검 권고: 캐시 무제한 증가, 커넥션 미반환, 이벤트 리스너 중복 등록 같은 패턴이 최근 배포에 있었는지 점검한다. [런북 memory-leak 절차 4]\n- payments-service 점검 권고: get_monitoring_status로 CPU 사용률과 최근 배포/트래픽 변화 시점을 확인한다. [런북 cpu-spike 절차 1]\n- payments-service 점검 권고: 반복 호출, 배치 작업 중복 실행 같은 특정 요청 패턴이 원인인지 최근 로그에서 확인한다. [런북 cpu-spike 절차 2]\n- log-service 점검 권고: get_monitoring_status와 서버 디스크 사용률을 확인해 임계 수준(90% 이상)인지 판단한다. [런북 disk-full 절차 1]\n3) 미확인·근거\n- 근거 범위: 현재 조회한 상태·CPU·메모리와 알림 원문 및 런북입니다.\n- 미확보 자료: 시계열 지표·상세 로그·배포 이력·서비스 호출 관계입니다. 실제 원인과 추세는 확정하지 않았습니다.\n- 추가 원인 확인과 조치 후 결과 확인이 필요합니다.\n- Runbook: 메모리 누수(Memory Leak) 대응 절차: data/runbooks/memory-leak.md · runbook://incident-response/memory-leak · 해시 085f00e9bba5\n- Runbook: CPU 급증 대응 절차: data/runbooks/cpu-spike.md · runbook://incident-response/cpu-spike · 해시 30796f7b5c1d\n- Runbook: 디스크 용량 부족 대응 절차: data/runbooks/disk-full.md · runbook://incident-response/disk-full · 해시 72b9d4f00649",
+    "request_id": "cmp-latest-F08-r01"
+  },
+  {
+    "case_id": "F09",
+    "question": "제 이름은 민수입니다",
+    "passed": true,
+    "checks": {
+      "completed": true,
+      "targets": true,
+      "context": true
+    },
+    "actual_targets": [],
+    "actual_runbooks": [],
+    "seconds": 1.9019472499930998,
+    "answer": "민수님, 반갑습니다! 어떤 도움을 드릴까요?",
+    "request_id": "cmp-latest-F09-r01"
+  },
+  {
+    "case_id": "F10",
+    "question": "제 이름이 뭐였죠?",
+    "passed": true,
+    "checks": {
+      "completed": true,
+      "targets": true,
+      "context": true,
+      "name": true
+    },
+    "actual_targets": [],
+    "actual_runbooks": [],
+    "seconds": 2.3796934579877416,
+    "answer": "민수님입니다.",
+    "request_id": "cmp-latest-F10-r01"
+  }
+]

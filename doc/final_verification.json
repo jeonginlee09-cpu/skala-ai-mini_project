@@ -1,0 +1,23 @@
+{
+  "product_commit": "69d58ebbc7d77911f708bfccf54884f27f7eae7e",
+  "measured_runtime_files_unchanged": 38,
+  "python_tests_passed": 90,
+  "ui_tests_passed": 5,
+  "api_comparison_requests": 66,
+  "feature_checks_passed": 10,
+  "warmup_requests_excluded": 8,
+  "langsmith_runs_verified": 84,
+  "pptx_slides": 9,
+  "pptx_native_tables": 1,
+  "pptx_notes": 9,
+  "pptx_sha256": "aa711e62e67918b075c76a2676cf6cb53473b2056fa6fd6ca15f6dfa068341ac",
+  "all_slides_visually_reviewed": true,
+  "native_powerpoint_execution_verified": false,
+  "html_visual_reviewed": false,
+  "new_streaming_specific_tests": false,
+  "human_semantic_accuracy": "not_measured",
+  "actual_invoice": "not_measured",
+  "presentation_delivered": false,
+  "broken_submission_links": [],
+  "credential_scan": "no configured secret found"
+}

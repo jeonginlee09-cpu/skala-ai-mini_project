@@ -1,3 +1,5 @@
+> 과거 버전 자료입니다. 현재 구현은 [최종 코드 설명](final_code_guide.md), 최신 수치는 [최종 실측 비교](final_comparison.md)를 확인하세요. 아래의 당시 소스·수치는 보존했습니다.
+
 # all_total_vue — 운영 인시던트 대응 에이전트 (Vue 프론트엔드 버전)
 
 `all_total`과 백엔드(server.py, agent/, mcp_server.py 등)는 완전히 동일하고, 브라우저

@@ -1,5 +1,6 @@
 """Render the checked-in code guide without external fonts, scripts, or CDN."""
 import re
+import argparse
 from pathlib import Path
 
 from markdown_it import MarkdownIt
@@ -9,6 +10,12 @@ DOC = ROOT / 'doc/reviewer_code_walkthrough.md'
 
 
 def main():
+    global DOC
+    parser=argparse.ArgumentParser()
+    parser.add_argument('--document',default='doc/reviewer_code_walkthrough.md')
+    parser.add_argument('--comparison',default='reviewer_comparison')
+    args=parser.parse_args()
+    DOC=ROOT/args.document
     source = DOC.read_text()
     broken = []
     for target in re.findall(r'\]\(([^)]+)\)', source):
@@ -16,7 +23,6 @@ def main():
             broken.append(target)
     assert not broken, broken
     body = MarkdownIt('commonmark', {'html':False}).enable('table').render(source)
-    body = body.replace('href="reviewer_comparison.md"', 'href="../evidence/reviewer_comparison_20261021/report.html"')
     style = '''
     :root{color-scheme:light}*{box-sizing:border-box}body{margin:0;background:#f2f5fa;color:#24334a;
     font:16px/1.8 Pretendard,-apple-system,"Apple SD Gothic Neo",sans-serif}main{max-width:1100px;
@@ -34,7 +40,7 @@ def main():
     @media(max-width:700px){main{margin:0;padding:22px 18px;border:0;border-radius:0}h1{font-size:25px}}
     @media print{main{margin:0;max-width:none;border:0;padding:10px}pre,table,blockquote{break-inside:avoid}}
     '''
-    page = '<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>기존·최신 코드 설명 자료</title><style>'+style+'</style></head><body><main><nav class="nav"><a href="../evidence/reviewer_comparison_20261021/report.html">66건 실측·실제 답변 비교</a><a href="reviewer_comparison.csv">집계 CSV</a></nav>'+body+'</main></body></html>'
+    page = '<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>기존·최신 코드 설명 자료</title><style>'+style+'</style></head><body><main><nav class="nav"><a href="'+args.comparison+'.md">66건 실측·실제 답변 비교</a><a href="'+args.comparison+'.csv">집계 CSV</a></nav>'+body+'</main></body></html>'
     dest = DOC.with_suffix('.html'); dest.write_text(page)
     print('Rendered:', dest)
 

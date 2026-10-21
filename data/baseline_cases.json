@@ -1,0 +1,103 @@
+[
+  {
+    "id": "Q01",
+    "query": "payments-service 결제 응답이 느려지고 CPU가 치솟았어요, 원인 확인해주세요",
+    "expected_targets": [
+      "payments-service"
+    ],
+    "expected_runbooks": [
+      "cpu-spike"
+    ]
+  },
+  {
+    "id": "Q02",
+    "query": "cache-service 메모리 사용률이 계속 올라가고 있어요",
+    "expected_targets": [
+      "cache-service"
+    ],
+    "expected_runbooks": [
+      "memory-leak"
+    ]
+  },
+  {
+    "id": "Q03",
+    "query": "log-service 디스크 공간이 부족하다는 알림이 왔어요",
+    "expected_targets": [
+      "log-service"
+    ],
+    "expected_runbooks": [
+      "disk-full"
+    ]
+  },
+  {
+    "id": "Q04",
+    "query": "gateway-service에서 payments-service로 가는 요청이 타임아웃 나고 있어요",
+    "expected_targets": [
+      "gateway-service",
+      "payments-service"
+    ],
+    "expected_runbooks": [
+      "network-timeout"
+    ]
+  },
+  {
+    "id": "Q05",
+    "query": "web-01 CPU 급증, auth-service 커넥션 풀도 같이 확인해줘",
+    "expected_targets": [
+      "web-01",
+      "auth-service"
+    ],
+    "expected_runbooks": null
+  },
+  {
+    "id": "Q06",
+    "query": "payments-service랑 cache-service 둘 다 저하됐는데 공통 원인이 있는지 분석해줘",
+    "expected_targets": [
+      "payments-service",
+      "cache-service"
+    ],
+    "expected_runbooks": null
+  },
+  {
+    "id": "Q07",
+    "query": "로그인 응답이 느려요, 원인 확인해주세요",
+    "expected_targets": [
+      "auth-service"
+    ],
+    "expected_runbooks": [
+      "high-latency"
+    ]
+  },
+  {
+    "id": "Q08",
+    "query": "billing-service 응답이 느려요",
+    "expected_targets": [
+      "auth-service"
+    ],
+    "expected_runbooks": [
+      "high-latency"
+    ],
+    "policy": "existing_auth_fallback"
+  },
+  {
+    "id": "Q09",
+    "query": "안녕, 너는 누구야?",
+    "expected_targets": [],
+    "expected_runbooks": [],
+    "expected_route": "chat"
+  },
+  {
+    "id": "Q10A",
+    "query": "제 이름은 민수입니다",
+    "expected_targets": [],
+    "expected_runbooks": [],
+    "expected_route": "chat"
+  },
+  {
+    "id": "Q10B",
+    "query": "제 이름이 뭐였죠?",
+    "expected_targets": [],
+    "expected_runbooks": [],
+    "expected_route": "chat"
+  }
+]

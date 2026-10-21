@@ -1,0 +1,253 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>기존·최신 코드 설명 자료</title><style>
+    :root{color-scheme:light}*{box-sizing:border-box}body{margin:0;background:#f2f5fa;color:#24334a;
+    font:16px/1.8 Pretendard,-apple-system,"Apple SD Gothic Neo",sans-serif}main{max-width:1100px;
+    margin:32px auto;padding:36px 48px;background:white;border:1px solid #dce4ef;border-radius:16px}
+    h1{font-size:30px;line-height:1.5;margin:0 0 22px}h2{font-size:23px;margin:42px 0 16px;
+    padding-top:14px;border-top:2px solid #e4ebf5}h3{font-size:19px;margin-top:28px;color:#1e4a83}
+    a{color:#245bb1;text-underline-offset:3px}p{margin:12px 0}blockquote{margin:20px 0;padding:12px 20px;
+    border-left:4px solid #376cc3;background:#eef4ff}pre{overflow:auto;background:#13243c;color:#e9f0fa;
+    border-radius:10px;padding:18px;font:14px/1.7 ui-monospace,monospace}code{font-size:.9em}
+    p code,td code,li code{background:#eef2f8;color:#314b72;padding:2px 5px;border-radius:4px}
+    table{border-collapse:collapse;width:100%;font-size:14px;display:block;overflow:auto;margin:16px 0}
+    th,td{border:1px solid #dce4ef;padding:10px 12px;vertical-align:top;min-width:125px}
+    th{background:#edf3fc;text-align:left}ul,ol{padding-left:24px}li{margin:7px 0}
+    .nav{display:flex;gap:20px;flex-wrap:wrap;background:#eaf1fc;padding:14px 18px;border-radius:8px;margin-bottom:25px}
+    @media(max-width:700px){main{margin:0;padding:22px 18px;border:0;border-radius:0}h1{font-size:25px}}
+    @media print{main{margin:0;max-width:none;border:0;padding:10px}pre,table,blockquote{break-inside:avoid}}
+    </style></head><body><main><nav class="nav"><a href="final_comparison.md">66건 실측·실제 답변 비교</a><a href="final_comparison.csv">집계 CSV</a></nav><h1>기존 과제와 최종 수정본의 코드 설명</h1>
+<p>최종 제품 소스는 <code>69d58eb</code>입니다. 원본 과제 백업과 실제 호출 경로를 확인해, 이미 있던 기능과 새로 강화한 기능을 구분했습니다. <a href="final_comparison.md">새 실측</a>과 <a href="final_review.md">평가표 점검</a>을 함께 읽으면 됩니다.</p>
+<h2>1. 원본도 런북을 보고 답변했습니다</h2>
+<p>원본의 흐름은 다음과 같습니다.</p>
+<pre><code class="language-text">질문 → route → plan → gate → research → replan_check
+     → analysis → write → validate → finalize
+</code></pre>
+<ul>
+<li><code>기존과제자료_백업_20261020/agent/graph.py</code>의 <code>plan_node()</code>는 모델에게 작업 계획을 받습니다. <code>gate_node()</code>는 필요하지 않은 analysis 작업을 코드로 제거합니다. AI 판단과 코드의 역할 분리가 이미 있었습니다.</li>
+<li><code>research_node()</code>는 MCP 모니터링을 호출하고, <code>_classify_incident_type()</code>의 첫 키워드 일치 유형으로 런북을 읽습니다. <code>write_node()</code>는 <strong>모니터링·런북·분석 결과를 모델에게 주고</strong> 자유로운 답변을 받습니다. 원본이 런북 근거 없이 답했다는 설명은 틀립니다.</li>
+<li>원본 <code>server.py</code>는 <code>thread_id</code>로 SQLite 대화를 읽고, 각 요청의 작업 자료를 새로 만듭니다. 다만 <code>history</code>를 주로 일반 대화에 주며 운영 라우팅·계획에는 이전 대상의 연결을 명시적으로 제공하지 않습니다.</li>
+<li>원본 <code>validate_node()</code>는 글자 수와 <code>1)</code>을 검사합니다. 세 번째 실패에도 합격으로 바꿉니다. 무한 반복을 막는 횟수 제한 자체는 이미 있었습니다.</li>
+</ul>
+<p><strong>발표 표현:</strong> “기존 구조를 교체한 것이 아니라, 요청 대상·검색 근거·답변 검수를 구체적인 계약으로 강화했습니다.”</p>
+<h2>2. 후속 질문은 대상 이름만 연결하고 새로 조회합니다</h2>
+<p>핵심 함수는 <a href="../agent/request_context.py#L13">resolve_followup()</a>입니다. Python 함수이며 그래프의 <code>resolve_context</code> 노드가 이를 사용합니다.</p>
+<table>
+<thead>
+<tr>
+<th>단계</th>
+<th>하는 일</th>
+<th>그렇게 하는 이유</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>현재 질문 확인</td>
+<td>새 서비스명이 있으면 우선합니다.</td>
+<td>이전 대화의 대상을 새 질문에 덮어쓰지 않기 위해서입니다.</td>
+</tr>
+<tr>
+<td>지시 표현 확인</td>
+<td>“그 서비스”, “그 두 서비스”와 점검·비교 같은 운영 표현을 찾습니다.</td>
+<td>이름 등록 같은 일반 대화를 조사 경로로 보내지 않기 위해서입니다.</td>
+</tr>
+<tr>
+<td>이전 사용자 메시지 확인</td>
+<td>최근 10개 메시지 중 사용자가 명시한 대상 이름을 찾습니다.</td>
+<td>AI의 이전 답변이 잘못 언급한 이름을 새 사실로 사용하지 않기 위해서입니다.</td>
+</tr>
+<tr>
+<td>모호함 확인</td>
+<td>이전 대상이 둘인데 “그 서비스”라고 하면 이름을 되묻습니다.</td>
+<td>임의로 하나를 고르거나 auth-service로 대체하지 않기 위해서입니다.</td>
+</tr>
+<tr>
+<td>작업 질문 구성</td>
+<td><code>effective_query</code>에 대상 이름과 이번 질문만 넣습니다.</td>
+<td>이전 CPU·메모리 수치를 현재값으로 재사용하지 않기 위해서입니다.</td>
+</tr>
+<tr>
+<td>경로 보장</td>
+<td>연결된 운영 후속 질문은 <code>incident</code>로 보냅니다.</td>
+<td>실제 검사에서 모델이 일반 대화로 분류해 새 조회를 생략했기 때문입니다.</td>
+</tr>
+</tbody>
+</table>
+<p>실제 보완한 위치는 <a href="../agent/graph.py#L127">route_node()</a>입니다. 모델의 분류 결과가 달랐으면 <code>model_route</code>와 <code>override_reason</code>을 이벤트에 남깁니다. 모델 분류를 숨기지 않습니다. 이 가드는 <strong>대상 연결을 끝낸 운영 후속 질문</strong>에만 적용합니다.</p>
+<pre><code class="language-python">resolved = state.get('context_resolution', {}).get('status') == 'resolved'
+if resolved:
+    result['route'] = 'incident'
+</code></pre>
+<p>원문 질문은 <code>query</code>, 작업용 질문은 <code>effective_query</code>로 구분합니다. 후자는 route·plan·RAG·Writer·Reviewer에 전달하며, 서버가 저장하는 사용자 메시지는 원문을 유지합니다. 모호하면 <code>clarification_required</code>로 답한 뒤 종료하고 다음 사용자 입력을 기다립니다. 체크포인터로 중단 그래프를 복원하는 구현은 아닙니다.</p>
+<p><strong>한계:</strong> 몇 가지 한국어 지시 표현과 알려진 서비스 이름을 처리하는 제한된 규칙입니다. 장거리 문맥과 모든 대명사 표현을 이해한다고 주장하지 않습니다. 원본의 SQLite 저장을 LangGraph Checkpointer로 교체하지도 않았습니다.</p>
+<h2>3. 런북은 관련성으로 고르고 두 개에서 자르지 않습니다</h2>
+<p><a href="../agent/runbook_retriever.py#L75">RunbookRetriever.search()</a>는 서비스별 알림과 전체 질문을 각각 검색합니다. Chroma가 여섯 문서를 순위대로 주면 관련성 모델이 직접 관련된 문서를 선택합니다. Python은 선택 ID와 실제 질문·문서 인용의 존재를 검사합니다.</p>
+<p><strong>직전 버전의 문제:</strong> 전체 결과를 최대 두 문서로 잘랐습니다. CPU·메모리·디스크가 서로 다른 세 서비스에 있으면 세 번째 근거가 사라질 수 있었습니다.</p>
+<p><strong>최종 변경:</strong> 기본 <code>max_results=None</code>으로 두 문서 제한을 제거했고, 현재 전체 여섯 문서를 관련성 후보로 줍니다. <code>(query_id, runbook_id)</code> 중복만 제거하고, 같은 문서의 여러 대상은 합칩니다. 그래프도 <code>hits[:2]</code>가 아니라 반환된 전체 hits를 읽습니다. 관련 없는 문서로 개수를 채우지 않습니다.</p>
+<p><a href="../agent/relevance.py#L18">OpenAIRelevanceFilter</a>는 독립된 관련성 프롬프트를 사용합니다. 캐시 버전을 <code>strict-topic-v3-coverage</code>로 바꾸어 예전 두 문서 선택을 그대로 재사용하지 않습니다. 예전 캐시와 실측은 삭제하지 않습니다.</p>
+<p>최종 원문은 MCP Resource로 읽고 등록 ID·내용 해시를 확인합니다. 조건표의 해시도 원문과 맞아야 합니다. 검색은 최초 포함 최대 두 번이며 결과 없음·검색 오류·원문 실패를 성공 근거로 바꾸지 않습니다.</p>
+<p><strong>한계:</strong> 여섯 짧은 문서라는 현재 범위에 맞춘 방식입니다. 문서가 크게 늘면 전체 후보 입력·검토 비용이 커집니다. 검색 대상별 후보 축소, 토큰 예산, 부분 근거 응답 정책을 추가해야 합니다. 해시 일치는 문서의 옳음이나 최신성 보장이 아닙니다.</p>
+<h2>4. AI가 선택하고 코드가 검사하는 범위를 분명히 했습니다</h2>
+<table>
+<thead>
+<tr>
+<th>판단·처리</th>
+<th>담당</th>
+<th>핵심 파일</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>일반 대화·운영 요청 분류, 초기 계획</td>
+<td>모델</td>
+<td><code>openai_llm.py</code>, <code>graph.py</code></td>
+</tr>
+<tr>
+<td>명시된 대상·모호성·누락·유효한 조회값 검사</td>
+<td>Python</td>
+<td><code>request_context.py</code>, <code>target_scope.py</code></td>
+</tr>
+<tr>
+<td>질문과 관련된 런북 선택</td>
+<td>모델 + 인용 검사 코드</td>
+<td><code>relevance.py</code>, <code>runbook_retriever.py</code></td>
+</tr>
+<tr>
+<td>절차·가설 ID 선택</td>
+<td>Writer 모델</td>
+<td><code>report_selection.py</code>, <code>openai_llm.py</code></td>
+</tr>
+<tr>
+<td>사실·조건·출처 조립</td>
+<td>Python</td>
+<td><code>report_selection.py</code>, <code>grounded_report.py</code></td>
+</tr>
+<tr>
+<td>참조 ID·수치·서비스·적용 조건 검수</td>
+<td>Python Validator</td>
+<td><code>validator.py</code></td>
+</tr>
+<tr>
+<td>복잡한 질문의 누락·관련성·표현 검토</td>
+<td>별도 Reviewer 역할</td>
+<td><code>semantic_review.py</code>, <code>graph.py</code></td>
+</tr>
+</tbody>
+</table>
+<p><a href="../agent/report_selection.py#L9">ReportSelection</a>은 <code>action_ids</code>, <code>hypothesis_ids</code> 두 필드만 허용합니다. 모델은 이번 요청에 주어진 A번호·H번호만 고를 수 있습니다. <code>expand_selection()</code>은 없는 ID를 거부하고 실제 조회값으로 사실을 구성합니다.</p>
+<p>현재 측정 필드와 발생 시각 미확인 알림을 구분합니다. 원인 가설은 가능성으로 표시하고 조치 실행 여부는 <code>proposed</code>입니다. CPU가 한 번 높았다는 값으로 “높은 상태가 지속됨”을 충족시킬 수 없습니다. 미충족·확인불가 조건이 있으면 조건부 권고로 제한합니다.</p>
+<p><a href="../agent/validator.py#L54">validate_report()</a>는 요청 서비스의 사실 누락, 임의 ID, 수치 불일치, 근거 없는 조치, 조건 누락을 검사합니다. 복잡한 요청은 <a href="../agent/graph.py#L430">review_node()</a>의 별도 Reviewer가 읽습니다. 같은 모델 계열을 사용하더라도 작성·검토는 별도 지시문·출력 계약·검토 단계입니다. 모든 노드가 독립 Agent인 것은 아닙니다.</p>
+<p><strong>한계:</strong> Reviewer는 추가 측정 도구를 호출하지 않습니다. 같은 모델의 편향이 남을 수 있고 등록 조건 밖의 모든 자연어 주장을 증명하는 검사기도 아닙니다. AI 승인과 사람 승인은 다릅니다.</p>
+<h2>5. 반복 제한과 기억은 기존 기능에서 무엇이 달라졌나요?</h2>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>기존 과제</th>
+<th>최종 수정본</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>대화 저장</td>
+<td>thread_id + SQLite</td>
+<td>유지</td>
+</tr>
+<tr>
+<td>요청별 작업 자료</td>
+<td>새 State로 시작</td>
+<td>유지하고 추가 상태까지 명시적으로 초기화</td>
+</tr>
+<tr>
+<td>이전 대상 연결</td>
+<td>일반 대화의 이력과 운영 계획이 분리</td>
+<td>제한된 지시 대상을 작업 질문에 연결</td>
+</tr>
+<tr>
+<td>답변 반복</td>
+<td>최대 3회 뒤 강제 통과</td>
+<td>Writer 최대 3회 뒤 검수 실패 보류</td>
+</tr>
+<tr>
+<td>내용 검토</td>
+<td>단순 형식 검사</td>
+<td>코드 검수 후 복잡한 요청에 Reviewer 최대 2회</td>
+</tr>
+<tr>
+<td>모니터링 보충</td>
+<td>기존 재계획·재시도</td>
+<td>요청 대상의 유효한 조회 결과를 대조해 누락만 제한적 보충</td>
+</tr>
+<tr>
+<td>검색 반복</td>
+<td>키워드 유형 선택</td>
+<td>검색 최초 포함 최대 2회</td>
+</tr>
+</tbody>
+</table>
+<p>첫 Reviewer 반려는 Writer로 돌아가고, 수정 답변도 Validator를 다시 받습니다. 재반려·오류·Writer 상한이면 <code>review_failed</code> 또는 <code>validation_failed</code>로 끝납니다. 기본 LangGraph recursion limit까지 무한 반복하도록 두지 않습니다.</p>
+<h2>6. 불필요한 코드 정리와 보존한 자료</h2>
+<ul>
+<li>운영 그래프에서 호출되지 않는 <code>_extract_system_name()</code>을 삭제했습니다.</li>
+<li>현재 RAG 경로에서 쓰지 않는 옛 키워드 분류기를 <code>tools/baseline_runbook_selection.py</code>로 옮겼습니다. 기존 방식과의 검색 비교에는 필요하므로 통째로 지우지 않았습니다.</li>
+<li>원본 백업, 이전 실험, fake/Ollama 어댑터와 v1 토글 경로는 원래 기능·비교·호환성을 위해 보존했습니다. 사용하지 않는 것처럼 보인다는 이유만으로 공개 어댑터 계약을 삭제하지 않았습니다.</li>
+<li><code>doc/</code>의 예전 비교는 당시 버전 표시를 유지하고 현재 README에서는 최종 자료를 먼저 연결했습니다.</li>
+</ul>
+<h2>7. 수업자료에서 확인한 근거와 프로젝트 선택</h2>
+<p>아래 번호는 PDF 뷰어 기준입니다. Capstone PDF 하단에 인쇄한 번호는 뷰어 번호보다 1 작을 수 있습니다.</p>
+<table>
+<thead>
+<tr>
+<th>적용 내용</th>
+<th>수업자료 근거</th>
+<th>프로젝트에서 직접 정한 부분</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>역할을 나눠 작성·검토</td>
+<td>AI Agent 설계 및 구축 p.108, 116~118</td>
+<td>복잡한 요청만 Reviewer를 호출하는 조건</td>
+</tr>
+<tr>
+<td>StateGraph와 상태 전달</td>
+<td>AI Agent 설계 및 구축 p.96 / Capstone p.127</td>
+<td><code>effective_query</code>·대상 연결·모호성 가드</td>
+</tr>
+<tr>
+<td>런북 검색·Chroma</td>
+<td>AI Agent 설계 및 구축 p.41, 74~75</td>
+<td>현재 여섯 문서 전체 후보·인용 대조·두 문서 제한 제거</td>
+</tr>
+<tr>
+<td>코드가 불필요한 작업을 차단하는 게이트</td>
+<td>Capstone p.148</td>
+<td>모든 요청 서비스의 조회 범위를 강제하는 규칙</td>
+</tr>
+<tr>
+<td>재계획·답변 검수·반복 방지</td>
+<td>Capstone p.155, 165, 167, 170</td>
+<td>Writer 3회·Reviewer 2회·계속 실패하면 보류</td>
+</tr>
+<tr>
+<td>대화 지속성</td>
+<td>Capstone p.209</td>
+<td>현재는 기존 SQLite 저장 + 사용자 이름 규칙을 유지</td>
+</tr>
+<tr>
+<td>DI·모듈·테스트</td>
+<td>Capstone p.217, 219, 221</td>
+<td><code>SupervisorDeps</code>와 통제 모델·MCP를 이용한 실패 조건 검사</td>
+</tr>
+<tr>
+<td>추적·동일 입력 비교</td>
+<td>Capstone p.238~239, 245</td>
+<td>고정 샘플, 소스 해시, 준비 비용 별도 집계</td>
+</tr>
+</tbody>
+</table>
+<p>교재가 <code>action_ids</code> 출력, 특정 정규식, 정확히 3회·2회 조합, 현재 응답 문장까지 제시했다고 주장하지 않습니다. 개념적 근거와 프로젝트 구현 선택을 구분합니다.</p>
+<p>참고 파일:</p>
+<ul>
+<li><code>AI_Agent_설계및구축.pdf</code>: <code>/Users/ijeong-in/Desktop/SKALA/reference/1012-13_AI_Agent/AI_Agent_설계및구축.pdf</code></li>
+<li><code>AI캠퍼스_AI_Capstone_20261016.pdf</code>: <code>/Users/ijeong-in/Desktop/SKALA/reference/1016_AI_Capstone/AI캠퍼스_AI_Capstone_20261016.pdf</code></li>
+</ul>
+</main></body></html>

@@ -14,9 +14,12 @@
     .nav{display:flex;gap:20px;flex-wrap:wrap;background:#eaf1fc;padding:14px 18px;border-radius:8px;margin-bottom:25px}
     @media(max-width:700px){main{margin:0;padding:22px 18px;border:0;border-radius:0}h1{font-size:25px}}
     @media print{main{margin:0;max-width:none;border:0;padding:10px}pre,table,blockquote{break-inside:avoid}}
-    </style></head><body><main><nav class="nav"><a href="../evidence/reviewer_comparison_20261021/report.html">66건 실측·실제 답변 비교</a><a href="reviewer_comparison.csv">집계 CSV</a></nav><h1>기존 과제에서 최신 Reviewer 버전까지 — 코드 설명 자료</h1>
+    </style></head><body><main><nav class="nav"><a href="reviewer_comparison.md">66건 실측·실제 답변 비교</a><a href="reviewer_comparison.csv">집계 CSV</a></nav><blockquote>
+<p>과거 버전 자료입니다. 현재 구현은 <a href="final_code_guide.md">최종 코드 설명</a>, 최신 수치는 <a href="final_comparison.md">최종 실측 비교</a>를 확인하세요. 아래의 당시 소스·수치는 보존했습니다.</p>
+</blockquote>
+<h1>기존 과제에서 최신 Reviewer 버전까지 — 코드 설명 자료</h1>
 <p>이 자료는 <strong>기존 과제 백업 → 최신 제품 코드 2e0f3ee</strong>의 변경을 설명합니다. 이번 작업에서는 제품 코드를 다시 바꾸지 않고, 두 버전의 실제 실행을 비교하고 설명 자료를 작성했습니다.</p>
-<p>먼저 <a href="../evidence/reviewer_comparison_20261021/report.html">새로 측정한 수치와 조건</a>을 확인하세요. 화면으로 읽기 좋은 <a href="../evidence/reviewer_comparison_20261021/report.html">실측 보고서</a>에는 같은 질문의 양쪽 실제 답변과 전체 이벤트 링크가 있습니다.</p>
+<p>먼저 <a href="reviewer_comparison.md">새로 측정한 수치와 조건</a>을 확인하세요. 화면으로 읽기 좋은 <a href="../evidence/reviewer_comparison_20261021/report.html">실측 보고서</a>에는 같은 질문의 양쪽 실제 답변과 전체 이벤트 링크가 있습니다.</p>
 <p>이번 실측의 평균은 <strong>4.099초→2.977초(27.4% 단축)</strong>, 전체 모델 토큰은 **29,648개→65,687개(121.6% 증가)**입니다. 시간은 줄었지만 근거 입력과 Reviewer 검토 비용이 추가되었습니다. <a href="reviewer_comparison_examples.json">각 첫 실행의 실제 답변 22건</a>도 Git에 보관합니다. 원시 SSE·제공자 입력·전체 66건 기록은 로컬 <code>evidence/</code>에 보관하고 업로드 대상에서 제외합니다.</p>
 <h2>1. 다른 사람에게 가장 먼저 할 설명</h2>
 <blockquote>

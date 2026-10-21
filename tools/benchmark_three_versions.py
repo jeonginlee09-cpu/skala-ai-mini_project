@@ -27,17 +27,27 @@ def snapshot_source(name, optimized_ref):
     dest.mkdir(parents=True)
     if name == 'original':
         original = ROOT / '기존과제자료_백업_20261020'
-        for item in original.iterdir():
-            if item.name.startswith('.') or item.name.startswith('session.db') or item.name.endswith('.json'):
-                continue
-            if item.is_dir(): shutil.copytree(item, dest / item.name, ignore=shutil.ignore_patterns('__pycache__'))
-            else: shutil.copy2(item, dest / item.name)
+        if original.exists():
+            for item in original.iterdir():
+                if item.name.startswith('.') or item.name.startswith('session.db') or item.name.endswith('.json'):
+                    continue
+                if item.is_dir(): shutil.copytree(item, dest / item.name, ignore=shutil.ignore_patterns('__pycache__'))
+                else: shutil.copy2(item, dest / item.name)
+        else:
+            # The root commit preserves the supplied assignment for a clean clone.
+            ref='0d8405e060188e7bd88a4c93a101ba4b40c1beb9'
+            entries=subprocess.check_output(['git','ls-tree','--name-only',ref],cwd=ROOT,text=True).splitlines()
+            entries=[p for p in entries if not p.startswith(('.', 'session.db')) and not p.endswith('.json')]
+            archive=subprocess.check_output(['git','archive',ref,'--',*entries],cwd=ROOT)
+            with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
+                tar.extractall(dest,filter='data')
     else:
         ref = 'baseline/pre-token-optimization-20261021' if name == 'improved' else optimized_ref
         archive = subprocess.check_output(['git', 'archive', ref], cwd=ROOT)
         with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
             tar.extractall(dest, filter='data')
-        shutil.copytree(ROOT / '.runbook_index', dest / '.runbook_index')
+        if (ROOT / '.runbook_index').exists():
+            shutil.copytree(ROOT / '.runbook_index', dest / '.runbook_index')
     files = {str(p.relative_to(dest)): hashlib.sha256(p.read_bytes()).hexdigest()
              for p in dest.rglob('*') if p.is_file() and '.runbook_index' not in p.parts}
     return dest, files
@@ -99,7 +109,7 @@ async def main():
     if (OUT / 'results.jsonl').exists(): raise RuntimeError('Previous run exists; preserve it before starting a new measurement')
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / 'telemetry').mkdir(exist_ok=True)
-    cases = json.loads((ROOT / 'evidence/test_cases.json').read_text())
+    cases = json.loads((ROOT / 'data/baseline_cases.json').read_text())
     manifest = {'started_at': datetime.now().astimezone().isoformat(), 'rounds': args.rounds,
         'python': sys.version, 'ports': PORTS, 'optimized_commit': subprocess.check_output(
             ['git', 'rev-parse', args.optimized_ref], cwd=ROOT, text=True).strip(), 'sources': {},

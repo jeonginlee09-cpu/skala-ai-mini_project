@@ -28,7 +28,8 @@ def snapshot(name, ref):
     archive = subprocess.check_output(["git", "archive", ref], cwd=ROOT)
     with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
         tar.extractall(dest, filter="data")
-    shutil.copytree(ROOT / ".runbook_index", dest / ".runbook_index")
+    if (ROOT / '.runbook_index').exists():
+        shutil.copytree(ROOT / '.runbook_index', dest / '.runbook_index')
     files = {str(p.relative_to(dest)): hashlib.sha256(p.read_bytes()).hexdigest()
              for p in dest.rglob("*") if p.is_file() and ".runbook_index" not in p.parts}
     return dest, files
@@ -50,7 +51,7 @@ async def main():
     (OUT / "telemetry").mkdir()
     common.OUT, common.PORTS = OUT, PORTS
     ref = subprocess.check_output(["git", "rev-parse", args.latest_ref], cwd=ROOT, text=True).strip()
-    cases = json.loads((ROOT / "evidence/test_cases.json").read_text())
+    cases = json.loads((ROOT / "data/baseline_cases.json").read_text())
     manifest = {"started_at": datetime.now().astimezone().isoformat(), "rounds": 3,
         "python": sys.version, "ports": PORTS, "latest_commit": ref, "sources": {},
         'trace_project_prefix':args.trace_prefix,

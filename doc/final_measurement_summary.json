@@ -1,0 +1,147 @@
+{
+  "latest_commit": "69d58ebbc7d77911f708bfccf54884f27f7eae7e",
+  "requests": 66,
+  "results": {
+    "original": {
+      "requests": 33,
+      "completed": 33,
+      "mean_s": 4.206516616181806,
+      "median_s": 4.886720624999725,
+      "p95_s": 5.920288374996744,
+      "incident_requests": 24,
+      "target_exact": 24,
+      "missing_targets": 0,
+      "outside_scope_targets": 0,
+      "monitoring_calls": 33,
+      "draft_exposed_requests": 24,
+      "rewrite_requests": 0,
+      "core_model_calls_all": 100,
+      "core_tokens_all": 29671,
+      "core_model_calls_incident": 82,
+      "core_input_tokens_incident": 20551,
+      "core_output_tokens_incident": 6987,
+      "core_tokens_incident": 27538,
+      "name_recall_passed": 3,
+      "name_recall_requests": 3,
+      "rejections": {},
+      "provider_model_names": {
+        "gpt-4o-mini-2024-07-18": 76,
+        "gpt-4o-2024-08-06": 24
+      },
+      "relevance_calls": 0,
+      "relevance_tokens": 0,
+      "embedding_calls": 0,
+      "embedding_tokens": 0,
+      "relevance_cache_hits": 0,
+      "reviewer_calls": 0,
+      "reviewer_tokens": 0,
+      "review_approved_requests": 0,
+      "review_skipped_requests": 0,
+      "review_failed_requests": 0,
+      "review_rejected_attempts": 0,
+      "reviewer_issue_codes": {},
+      "monitoring_retries": 0,
+      "extra_search_attempts": 0
+    },
+    "latest": {
+      "requests": 33,
+      "completed": 33,
+      "mean_s": 3.245676800486046,
+      "median_s": 3.4852564579923637,
+      "p95_s": 4.7484181670006365,
+      "incident_requests": 24,
+      "target_exact": 24,
+      "missing_targets": 0,
+      "outside_scope_targets": 0,
+      "monitoring_calls": 33,
+      "draft_exposed_requests": 0,
+      "rewrite_requests": 0,
+      "core_model_calls_all": 105,
+      "core_tokens_all": 74252,
+      "core_model_calls_incident": 87,
+      "core_input_tokens_incident": 69792,
+      "core_output_tokens_incident": 2327,
+      "core_tokens_incident": 72119,
+      "name_recall_passed": 3,
+      "name_recall_requests": 3,
+      "rejections": {},
+      "provider_model_names": {
+        "gpt-4o-mini-2024-07-18": 66,
+        "gpt-4o-2024-08-06": 39
+      },
+      "relevance_calls": 0,
+      "relevance_tokens": 0,
+      "embedding_calls": 0,
+      "embedding_tokens": 0,
+      "relevance_cache_hits": 24,
+      "reviewer_calls": 15,
+      "reviewer_tokens": 35175,
+      "review_approved_requests": 15,
+      "review_skipped_requests": 9,
+      "review_failed_requests": 0,
+      "review_rejected_attempts": 0,
+      "reviewer_issue_codes": {},
+      "monitoring_retries": 0,
+      "extra_search_attempts": 0
+    }
+  },
+  "verification_errors": {
+    "source": [],
+    "fixture": [],
+    "usage": [],
+    "resource": []
+  },
+  "features_passed": 10,
+  "features_total": 10,
+  "usage_by_phase": {
+    "comparison": {
+      "core": {
+        "calls": 205,
+        "tokens": 103923
+      },
+      "relevance": {
+        "calls": 0,
+        "tokens": 0
+      },
+      "embedding": {
+        "calls": 0,
+        "tokens": 0
+      }
+    },
+    "warmup": {
+      "core": {
+        "calls": 29,
+        "tokens": 24127
+      },
+      "relevance": {
+        "calls": 8,
+        "tokens": 27637
+      },
+      "embedding": {
+        "calls": 0,
+        "tokens": 0
+      }
+    },
+    "features": {
+      "core": {
+        "calls": 26,
+        "tokens": 23820
+      },
+      "relevance": {
+        "calls": 6,
+        "tokens": 21806
+      },
+      "embedding": {
+        "calls": 6,
+        "tokens": 140
+      }
+    }
+  },
+  "human_semantic_accuracy": "not_measured",
+  "actual_invoice": "not_measured",
+  "new_streaming_tests_added": false,
+  "failed_requests": [],
+  "langsmith_graph_runs": 84,
+  "missing_langsmith_requests": [],
+  "remote_secret_detected": false
+}

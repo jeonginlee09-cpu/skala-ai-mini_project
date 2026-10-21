@@ -1,44 +1,31 @@
-# 운영 인시던트 Agent — 런북 RAG·근거 및 조건 검수
+# 운영 인시던트 Agent 개선 프로젝트
 
-현재 루트 폴더가 런북 RAG·근거 및 조건 검수를 적용한 개선본입니다. 이전 과제자료와 기존 Git 정보는 `기존과제자료_백업_20261020/`에 모았으며 Git 업로드 대상에서 제외합니다. 기존 GitHub 연결 주소와 개선본의 커밋 이력을 유지했습니다. 1~3단계 기준 커밋은 `4c5bf90`입니다. 사람 승인은 아직 구현하지 않았으며 실제 재시작·확장·롤백 도구도 없습니다.
+현재 루트가 제출용 개선본입니다. 원본은 `기존과제자료_백업_20261020/`에 보존했으며 수정하지 않았습니다. 기존 GitHub 연결을 유지합니다. 사용 자료는 **수업용 모니터링 샘플과 런북 6개**입니다. 실제 서비스 장애를 분석하거나 조치를 실행하는 서비스는 아닙니다.
 
-## 현재 버전: 선택적 내용 검토 Reviewer
+## 최종 수정 내용
 
-복수 서비스·복수 런북·비교 분석 요청은 코드 검수 후 별도 프롬프트의 Reviewer가 질문 적합성과 누락을 검토합니다. 첫 반려는 Writer로 돌아가고 수정 초안도 코드 검수를 다시 받습니다. 재반려·검토 오류는 `review_failed`로 종료합니다. Reviewer 2회·Writer 3회 상한이며, 단순 요청은 검토 호출을 생략합니다. OpenAI에 적용했고 fake/Ollama는 비활성으로 표시합니다. [설계·설정·한계](doc/conditional_reviewer.md).
+- 요청한 모든 서비스의 조회 계획과 실제 결과를 대조합니다. 누락된 조회만 제한적으로 보충하며, 값을 얻지 못하면 미확인으로 표시합니다.
+- Chroma 검색과 관련성·인용 검사를 거친 런북을 MCP로 읽습니다. **두 개 고정 제한을 없앴습니다.** 현재 후보는 전체 여섯 문서이며, 관련 없는 문서로 개수를 채우지 않습니다.
+- OpenAI Writer는 절차·가설 ID를 고르고, Python이 조회한 사실·수치·조건·출처를 조립합니다. Validator가 검사한 뒤 복잡한 요청에는 별도의 AI Reviewer를 적용합니다.
+- “그 서비스” 같은 운영 후속 질문은 최근 사용자 메시지에서 대상 이름을 연결해 **새로 조회**합니다. 여러 대상 중 무엇인지 모호하면 되묻습니다. 이전 측정값은 새 근거로 사용하지 않습니다.
+- 대상이 확인된 운영 후속 질문을 모델이 일반 대화로 잘못 분류해도 조회 경로로 보냅니다. 이번 실제 검사에서 발견한 오분류를 회귀 테스트로 남겼습니다.
+- Writer 최대 3회·Reviewer 최대 2회 후 계속 실패하면 답변을 보류합니다. 기존 과제에도 반복 제한이 있었으며, 새 차이는 한도 도달을 강제 합격으로 바꾸지 않는다는 점입니다.
 
-Python 검사 76개·화면 검사 5개가 통과했습니다. 실제 API 예시 4건에서 일반 대화는 미호출, 단순 조회는 생략, 복수 서비스와 복합 증상은 각각 Reviewer 1회 승인으로 완료됐고 LangSmith 4건을 재조회했습니다. [질문·실제 응답·검토 결과](doc/reviewer_execution_examples.json). 반려 후 환류·상한·오류 종료는 통제된 테스트로 확인했습니다.
+세션 저장·요청별 새 State·AI와 코드의 역할 분리·MCP·게이트·반복 제한은 기존 과제에도 있었습니다. 이를 새로 만든 기능으로 소개하지 않습니다. [기존 흐름과 변경 코드 설명](doc/final_code_guide.md).
 
-아래 99건 비교 수치는 Reviewer 추가 전 기록입니다. 새 버전의 성능 수치로 혼용하지 않습니다.
+## 제출자가 먼저 볼 자료
 
-최신 Reviewer 포함 버전과 원본을 같은 입력으로 각각 33건 새로 실행한 결과는 [66건 실측 비교](doc/reviewer_comparison.md)에 있습니다. 평균 처리시간은 4.099초→2.977초, 전체 모델 토큰은 29,648→65,687개입니다. 시간은 줄었지만 Reviewer의 입력 비용이 추가되어 토큰은 늘었습니다. [변경 전후 코드 해설](doc/reviewer_code_walkthrough.md) · [읽기 편한 HTML 해설](doc/reviewer_code_walkthrough.html). 원본·샘플·소스 해시와 LangSmith 66건을 확인했으며, 정답률·실제 청구액은 측정하지 않았습니다.
+1. [최종 Before/After 실측 비교](doc/final_comparison.md) · [CSV](doc/final_comparison.csv)
+2. [주요 코드와 교재 근거](doc/final_code_guide.md) · [HTML 설명](doc/final_code_guide.html)
+3. [평가표 점검·검증 범위·한계](doc/final_review.md)
+4. [발표 자료](output/AI_Agent_개선_최종발표.pptx) · [발표문](doc/presentation_script.md)
+5. [실제 답변 예시](doc/final_execution_examples.json) · [작은 실측 요약](doc/final_measurement_summary.json)
 
-## 10월 21일 messages·updates 스트리밍 수정
+같은 11개 입력을 원본과 최종 수정본에 각각 3회 실행합니다. 검색 준비와 별도 새 기능 검사는 본 비교에서 분리합니다. 자동 검사·AI Reviewer 승인·처리 완료율은 독립 평가자가 채점한 답변 정답률이 아닙니다. 실제 청구액과 실제 발표 여부도 미확인입니다.
 
-일반 대화는 OpenAI의 실제 텍스트 조각을 `messages`로 받고, 노드 결과는 `updates`로 구분합니다. 코드가 직접 호출하는 MCP·검색 작업의 시작·완료·실패는 `custom`으로 즉시 알립니다. 추가 SDK나 추가 모델 호출 없이 기존 langchain-core/httpx로 연결했으며, 장애 보고서는 검수 후 공개합니다. [변경 설명](doc/streaming_revision.md).
+## 실행 방법
 
-새 스트리밍 전용 검증 항목·테스트는 추가하지 않았습니다. 기존 검사와 같은 지표로 기존 과제·직전 최적화본·수정본을 각각 33건 다시 실행한 결과는 [새 세 버전 비교](doc/stream_revision_comparison.md)에 기록합니다. 이전 비교 자료는 아래에 보존합니다.
-
-새 실측에서 평균 완료 시간은 기존 과제 4.278초, 최적화본 2.828초, 수정본 2.815초입니다. 전체 33건의 핵심 토큰은 각각 29,874 / 36,794 / 36,765개입니다. 최적화본과 수정본의 총 시간·토큰은 사실상 비슷하며, 스트리밍 자체의 추가 절감 효과를 입증한 수치로 해석하지 않습니다. 기존 60 Python·4 화면 검사와 실제 99요청·LangSmith 기록을 확인했습니다.
-
-## 10월 21일 토큰 최적화
-
-OpenAI 보고서 생성은 이제 짧은 절차·가설 ID만 선택합니다. 현재 측정 사실, 권고 유형, 조건 표시, 출처와 실행 여부는 코드가 구성하고 기존 검수기로 다시 검사합니다. 입력에서 문서 메타데이터·가설 반복을 없애고 동일한 가설/알림의 중복 표시를 정리했습니다. 별도 모델의 미사용 분석 요약은 현재값의 코드 비교로 대체했으며 공통 원인은 확정하지 않습니다. Ollama의 기존 전체 보고서 방식은 유지합니다.
-
-최적화 전 개선본은 `baseline/pre-token-optimization-20261021`(`f369c8f`)에 보존했습니다. 원본·개선본·최적화본의 고정 샘플 비교 방법과 한계는 [최적화 설명](doc/token_optimization.md)을 참고하세요. 이전 `evidence/rag_validation`은 10월 20일의 역사 기록이며 새 실측으로 덮어쓰지 않습니다.
-
-2026-10-21에 같은 고정 샘플로 총 99건을 실행했습니다. 평균 시간은 기존 개선본 5.392초에서 최적화본 2.885초로, 장애 24건의 핵심 토큰은 126,367개에서 34,582개로 감소했습니다. [세 버전 비교표](doc/three_way_comparison.md) · [집계 CSV](doc/three_way_comparison.csv). 검색 캐시를 재사용한 조건이며 최종 답변의 독립적인 의미 검수는 남아 있습니다.
-
-## 현재 실행 화면
-
-브라우저: **http://127.0.0.1:18620** · 백엔드: **http://127.0.0.1:18120**
-
-이미 이 포트에서 실행 중이면 다시 서버를 띄우지 않습니다. 이전 1~3단계 화면은 18610입니다. 새 기능 검증에는 18620을 사용합니다.
-
-## 환경 준비와 실행
-
-현재 컴퓨터에는 `.venv-rag` 전용 환경을 준비했습니다. `.venv`도 이 개선본 환경을 가리킵니다. 기존 과제의 가상환경과 설정은 백업 폴더에 보존했고, 실행용 `.env`는 루트에 유지했습니다. 이전 절대 경로를 사용하는 도구를 위해 Documents/Codex의 옛 작업 경로에는 현재 루트로 연결되는 호환용 바로가기만 유지합니다. ZIP에는 가상환경·키·대화 DB·검색 캐시가 없습니다.
-
-다른 컴퓨터에서는 Python 3.11과 uv를 준비하고 다음을 실행합니다.
+Python 3.11과 uv를 준비한 뒤 다음을 실행합니다. 이미 `.venv-rag`가 있다면 다시 만들 필요가 없습니다.
 
 ```bash
 uv venv --python 3.11 .venv-rag
@@ -46,9 +33,9 @@ uv pip install --python .venv-rag/bin/python -r requirements-rag.lock.txt
 cp .env.example .env
 ```
 
-`.env`의 OPENAI_API_KEY를 본인 키로 채웁니다. 키는 출력하거나 코드에 넣지 않습니다. LangSmith 기록이 필요하면 본인 키와 tracing 설정도 추가합니다. 임베딩·관련성 판정·답변 생성은 OpenAI API를 사용하므로 실제 API 사용량이 발생합니다. 추가 검색 API나 OpenAI Python SDK는 사용하지 않고 기존 httpx REST 방식을 유지했습니다.
+`.env`의 `OPENAI_API_KEY`를 본인 키로 채웁니다. LangSmith를 사용하려면 본인 설정을 추가합니다. 키를 코드·발표·로그에 적거나 출력하지 않습니다. 실제 OpenAI 호출은 과금되며 추가 유료 검색 API는 사용하지 않습니다.
 
-두 터미널에서 각각 실행합니다.
+서로 다른 터미널에서 실행합니다.
 
 ```bash
 .venv-rag/bin/python tools/run_local.py backend
@@ -58,98 +45,73 @@ cp .env.example .env
 .venv-rag/bin/python tools/run_local.py frontend
 ```
 
-서버는 종료할 때 해당 터미널에서 Ctrl+C를 사용합니다. 기존 서버를 강제 종료하거나 session.db를 지우는 스크립트는 사용하지 않습니다. 새 실행은 `session.db.rag`에 대화를 저장합니다.
+기본 화면은 `http://127.0.0.1:18620`, 백엔드는 `http://127.0.0.1:18120`입니다. 이미 실행 중인 서버에는 코드 변경이 자동 반영되지 않을 수 있으므로 그 서버를 실행한 터미널에서 Ctrl+C로 종료한 뒤 다시 실행합니다. 다른 프로그램을 강제 종료하거나 대화 DB를 지우지 않습니다. 세션은 `session.db.rag`에 저장합니다.
 
-## 어떻게 처리하나요?
+## 처리 흐름
 
 ```mermaid
 flowchart TD
-    A[질문] --> B[대화 라우팅]
-    B -->|일반 대화| C[대화 이력으로 답변]
-    B -->|운영 질문| D[요청 대상 계획·범위 검사]
-    D --> E[모니터링 조회·누락 보충]
-    E -->|지표 미확인| P[코드가 부분 결과 작성]
-    E -->|지표 확보| F[Chroma 후보 검색]
-    F --> G[관련성 판정·인용 문구 대조]
-    G --> H[MCP 원문 읽기·해시 확인]
-    H --> I[근거·가설·권고 구조화 초안]
-    I --> J[참조 ID·대상·수치·조건 검수]
-    J -->|통과| M{복합 질문·Reviewer 활성?}
-    M -->|아니오| K[검수된 최종 답변 공개]
-    M -->|예| N[Reviewer: 내용 적합성 검토]
-    N -->|승인| K
-    N -->|첫 반려·상한 내| I
-    N -->|재반려·오류| O[review_failed]
-    J -->|최대 2회 재작성| I
-    J -->|계속 실패| L[validation_failed]
-    P --> K
+    A[질문·저장된 대화] --> B[지시 대상 연결]
+    B -->|대상 모호| C[서비스명 추가 질문 후 종료]
+    B -->|처리 가능| D[대화·운영 분류]
+    D -->|일반 대화| E[대화 이력으로 답변]
+    D -->|운영 요청| F[계획·요청 범위 검사]
+    F --> G[MCP 모니터링 조회·누락 확인]
+    G --> H[Chroma 검색·관련성·인용 검사]
+    H --> I[MCP 원문·해시 확인]
+    I --> J[Writer의 ID 선택·코드 조립]
+    J --> K[Validator의 사실·조건 검사]
+    K -->|합격| L{복잡한 요청?}
+    K -->|한도 내 재작성| J
+    K -->|한도 초과| O[답변 보류]
+    L -->|아니오| N[최종 답변]
+    L -->|예| M[AI Reviewer]
+    M -->|승인| N
+    M -->|첫 반려·한도 내| J
+    M -->|재반려·오류| O
 ```
 
-### 검색
+### 검색·기억·검수의 경계
 
-- 수업 런북 6개를 전체 문서 단위로 로컬 Chroma에 저장합니다. `text-embedding-3-small`로 문서와 질문을 변환합니다.
-- 원문 해시·임베딩 모델·인덱스 버전을 보관합니다. 변경 없는 문서와 같은 질문의 임베딩은 재사용합니다.
-- 서비스별 알림과 전체 질문을 나눠 검색해 한 서비스의 증상이 다른 서비스를 덮지 않게 합니다.
-- 벡터 상위 3개 후보에서 `gpt-4o`(기본 관련성 모델)가 직접 관련된 문서를 고릅니다. 질문·문서의 인용 문구가 실제 원문에 있는지 코드로 대조합니다. 인용 존재가 의미적 관련성을 완전히 증명하는 것은 아닙니다.
-- 전체 최대 2개를 읽으며 관련 없는 문서로 두 개를 채우지 않습니다. 결과 없음·검색 오류는 한 번 더 검색하고, 여전히 부족하면 상태를 명시합니다.
-- 최종 원문은 기존 MCP Resource로 읽고 등록된 ID·내용 해시를 검사합니다. 원문 읽기 실패와 조건표 해시 불일치도 정상 규정으로 취급하지 않습니다.
-- `data/retrieval_policy.json`의 거리 임계값은 초기 거리 단독 실험 기록입니다. 현재는 상위 후보 순위와 관련성 판정·인용 검사를 사용합니다. 이를 정답 확률로 해석하지 않습니다.
+- 여섯 짧은 런북을 전체 문서 단위로 저장합니다. `text-embedding-3-small` 임베딩과 Chroma를 사용합니다. 관련성 필터에 현재 전체 여섯 후보를 주며 질문·문서 인용이 원문에 있는지 대조합니다. 문서가 늘 때의 토큰 예산 제어는 향후 과제입니다.
+- 문서·질문 임베딩을 재사용하고, 관련성 캐시 버전을 변경했습니다. 예전 두 개 선택 결과를 그대로 재사용하지 않습니다. 원문 해시는 내용 일치만 확인하며 정답·최신성을 보장하지 않습니다.
+- `request_context.py`는 최근 대화 10개 메시지에서 **사용자가 명시한 서비스 이름**을 확인합니다. 등록된 한국어 지시 표현만 처리하며 일반적인 대명사 해석 전체를 구현하지는 않았습니다. 새 서비스명을 명시하면 그 이름을 우선합니다.
+- 현재 관측값, 알림 인용, 원인 가설, 조건부 권고를 구분합니다. CPU가 높다는 한 번의 값으로 지속 시간이나 배포 원인을 확정하지 않습니다.
+- 일반 대화의 실제 생성 조각은 `messages`, 노드 완료 상태는 `updates`, 코드가 직접 호출하는 MCP 작업의 시작·완료는 `custom`으로 구분합니다. 검수 전 장애 초안은 공개하지 않습니다. 스트리밍 전용 검증은 추가하지 않았습니다.
 
-### 근거와 검수
+## API 상태
 
-- 현재 조회 상태·CPU·메모리와 알림 원문을 서로 다른 근거 ID로 저장합니다. 알림 발생 시각이 없으면 미확인으로 남깁니다.
-- OpenAI 초안은 절차·가설의 짧은 ID만 반환하며 코드가 사실 참조와 권고 유형을 채웁니다. 임의 사실·수치·자유문장 answer 필드는 허용하지 않습니다.
-- 코드가 서비스명·수치·상태·근거 ID·권고의 적용 조건을 검사합니다. 최종 문장은 검증된 참조와 신뢰한 원문에서 렌더링하므로 별도 자유문장 재생성에서 숫자가 다시 바뀌지 않습니다.
-- CPU 90% 초과와 높은 상태의 지속은 별도 조건입니다. 현재 단일 조회로 지속을 입증할 수 없습니다. 알림에서 추출한 풀·디스크 수치는 현재 측정값으로 간주하지 않아 현재값 조건을 자동 충족시키지 않습니다.
-- 조건은 충족·미충족·확인불가입니다. 미충족/확인불가 조건을 포함한 조치는 조건부 권고만 허용합니다. 수업 런북의 90% 기준은 실제 모든 서비스에 적용되는 보편 기준이 아닙니다.
-- 최초 초안 뒤 최대 2회 재작성합니다. 계속 실패하면 강제 통과하지 않습니다. 장애 초안은 검수 전에 화면에 보내지 않습니다.
-
-## API 변경
-
-POST `/chat` 입력은 기존 message/thread_id/request_id를 유지합니다. 응답에 status를 추가했습니다.
+POST `/chat` 입력은 `message`, `thread_id`, `request_id`를 사용합니다. GET `/chat/stream`은 같은 요청 ID가 붙은 SSE를 사용합니다. `[DONE]`은 스트림 종료이며 성공 판정이 아닙니다.
 
 | status | 의미 |
 |---|---|
-| success | 보고서 처리 성공입니다. 원인 확정·복구 성공이라는 뜻은 아닙니다. |
-| partial | 일부 모니터링 지표를 확보하지 못해 부분 결과만 제공합니다. |
-| validation_failed | 초안의 참조·조건 검수가 끝까지 실패해 권고를 확정하지 않습니다. |
-| review_failed | 내용 검토가 재반려되거나 오류가 발생해 권고를 확정하지 않습니다. |
+| `success` | 보고서 처리 완료입니다. 원인 확정·복구 완료를 뜻하지 않습니다. |
+| `clarification_required` | 지시 대상이 모호해 서비스 이름을 추가 질문합니다. 조회하지 않습니다. |
+| `partial` | 일부 지표를 얻지 못해 확인한 범위만 제공합니다. |
+| `validation_failed` | 사실·조건 검수를 끝까지 통과하지 못했습니다. |
+| `review_failed` | AI Reviewer가 재반려했거나 검토 오류가 발생했습니다. |
 
-metadata에는 validation_result, runbook_ids, runbook_search_status, search_count, 근거 목록, 검색 사용량이 있습니다. 검수 실패는 HTTP 오류와 구분한 처리 상태이며 실패 초안을 성공 답변 이력으로 저장하지 않습니다.
+응답 메타데이터의 `effective_query`·`context_resolution`으로 대상 연결을 확인할 수 있습니다. 서비스명·조회 근거·검색 결과·검수 상태도 분리해서 기록합니다. 실패 초안을 성공 답변으로 저장하지 않습니다.
 
-GET `/chat/stream`은 요청 ID가 붙은 SSE를 유지합니다. 검색/원문/검수 진행 이벤트를 추가했습니다. 코드 검수 실패는 `ValidationFailed`, 내용 검토 실패는 `ReviewerFailed`로 알리고 `FinalAnswer`/`Finalize` 성공 이벤트를 내보내지 않습니다. `[DONE]`은 스트림 종료를 뜻하며 성공 판정이 아닙니다.
-
-## 검사와 자료
+## 검사·실측 재현
 
 ```bash
 LANGSMITH_TRACING=false LANGCHAIN_TRACING_V2=false .venv-rag/bin/python -m unittest discover -s tests -v
 node --test tests/test_request_ui.cjs
 ```
 
-자동 테스트는 통제된 벡터·모델·도구를 사용합니다. 실제 임베딩·실제 모델 결과는 [검증 보고서](evidence/rag_validation/report.html)에 따로 정리합니다. 비용의 cost_usd는 기존 가상 단가 값이며 청구액이 아닙니다. 검색 API 사용량은 따로 기록합니다.
-
-검색만 재평가하려면 다음 명령을 사용합니다. 이 명령은 OpenAI API를 호출합니다.
+자동 검사는 통제된 모델·도구를 사용합니다. 실제 API 비교는 별도 실행입니다. 기존 측정 폴더를 덮어쓰지 않도록 새 경로와 프로젝트 접두어를 정합니다.
 
 ```bash
-.venv-rag/bin/python tools/evaluate_runbooks.py --rerank
-.venv-rag/bin/python tools/evaluate_runbooks.py --rerank --heldout
+.venv-rag/bin/python tools/benchmark_reviewer_comparison.py --latest-ref 69d58eb --out evidence/new_comparison --trace-prefix capstone-new-comparison --warm-cache --extra-cases data/final_feature_cases.json
 ```
 
-평가 질문과 기대 ID는 `data/retrieval_cases.json`에 있습니다. 개발 도중 여러 방식으로 재검사했으므로 독립적인 최종 성능 평가로 보지 않습니다. 원문 해석과 최종 답변의 별도 사람 검수는 남아 있습니다. 문서를 변경하면 검색 정책을 재평가하고 `runbook_rules.json`의 조건·원문 해시도 검토해야 합니다.
+원본 비교 입력은 `data/baseline_cases.json`에, 이번 새 기능 입력은 `data/final_feature_cases.json`에 있습니다. 원시 `evidence/`는 Git 제외 대상이며 제출용 작은 집계·예시는 `doc/`에 보관합니다. 새로 준비한 Git 사본에서는 원본 커밋 `0d8405e`를 포함한 전체 이력이 필요합니다. 로컬 원본 백업이 없으면 그 커밋에서 소스를 읽으며, 검색 인덱스가 없으면 시작 과정에서 생성합니다. 인덱스 생성 비용은 본 비교에서 제외됩니다. 보고서 작성 도구 `tools/report_final_alignment.py`는 이번 최종 실측 폴더 전용입니다.
 
-## 주요 파일
+## 남은 한계
 
-| 파일 | 역할 |
-|---|---|
-| agent/runbook_retriever.py · embeddings.py · relevance.py | 캐시·Chroma 후보·관련성 판정·인용 대조 |
-| agent/evidence.py | 근거 ID와 출처 구분 |
-| data/runbook_rules.json · agent/validator.py | 원문과 연결한 조건표·검수 |
-| agent/grounded_report.py | 출력 스키마와 최종 문장 렌더링 |
-| agent/graph.py | 검색·근거·재작성·실패 종료 연결 |
-| server.py · web_chat.html · request_ui.js | POST/SSE 상태와 화면 |
+`billing-service`는 지원 목록에 없으며 기존 `auth-service` 대체 정책을 유지합니다. 이를 billing-service 조사 성공으로 해석하지 않습니다. 검색·Reviewer도 모델 판단 오류가 남고, 문서 인용 존재만으로 관련성 전체를 증명할 수 없습니다. 샘플에 시계열·배포 이력·실제 호출 관계가 없어 근본 원인은 확정할 수 없습니다. 사람 승인, 운영 조치 실행, 다중 worker 운영 검증은 구현하지 않았습니다.
 
-## 한계
+## 과거 기록
 
-검색 관련성은 모델 판단을 포함하므로 문서 누락·오선택 가능성이 남습니다. 자동 검수는 구조화 참조와 등록된 조건을 검사하며 모든 자연어 의미를 이해하는 범용 사실 검증기가 아닙니다. 모니터링은 임의 변동이 있는 수업 샘플이고 시계열·배포 로그·프로파일링 도구는 없습니다. 사람 승인과 실제 외부 조치는 이번 범위 밖입니다. 기존 미지원 billing-service의 auth-service 폴백 정책과 일반 대화 경로는 유지했습니다. 단일 프로세스의 요청 잠금·검색 잠금이며 다중 worker 운영은 검증하지 않았습니다.
-
-공식 기술 참고: [Chroma query](https://docs.trychroma.com/docs/querying-collections/query-and-get), [Chroma configuration](https://docs.trychroma.com/docs/collections/configure), [OpenAI embeddings](https://developers.openai.com/api/docs/guides/embeddings), [OpenAI Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs?api-mode=chat).
+[직전 Reviewer 비교](doc/reviewer_comparison.md), [세 버전 최적화 비교](doc/three_way_comparison.md), [messages·updates 수정 비교](doc/stream_revision_comparison.md)는 당시 버전의 기록입니다. 현재 최종 수치와 섞지 않습니다. [기존 배포 가이드](doc/README.md) 역시 원본 구조 설명으로 보존합니다.
